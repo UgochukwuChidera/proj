@@ -1,0 +1,11 @@
+
+{
+  "features": [
+    "User authentication: Secure login and registration for Landmark University users. Users can create an account or log in if they already have one.",
+    "Resource display: View a filterable and searchable list of available university resources. This includes lecture notes, textbooks, research papers, lab equipment, and software licenses.",
+    "Advanced Search and Filtering: Find resources using keywords. You can also apply filters for year of publication/availability, resource type (e.g., PDF, Video, Equipment), name, and associated course code.",
+    "User Profile Management: Authenticated users can manage their profile. This includes uploading a profile image and updating basic information like their name. They can also change their password.",
+    "Mobile-Friendly Design: The application is designed to be responsive and work well on various screen sizes, including mobile phones and tablets.",
+    "Chatbot Assistance: An AI assistant is available to answer questions about how to use the application and its features. You are currently interacting with this assistant."
+  ]
+}

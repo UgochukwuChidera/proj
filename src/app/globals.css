@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-body), sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 140 100% 97%; /* #F0FFF4 Honeydew Light */
+    --foreground: 146 25% 15%; /* Dark Green-Gray Light */
+    --card: 140 100% 97%;
+    --card-foreground: 146 25% 15%;
+    --popover: 140 100% 97%;
+    --popover-foreground: 146 25% 15%;
+    --primary: 147 50% 47%; /* #3CB371 MediumSeaGreen Light */
+    --primary-foreground: 0 0% 100%; /* White */
+    --secondary: 140 60% 90%; /* Lighter shade of background for secondary elements */
+    --secondary-foreground: 146 25% 15%;
+    --muted: 140 50% 85%;
+    --muted-foreground: 146 20% 35%;
+    --accent: 146 50% 36%; /* #2E8B57 SeaGreen Light */
+    --accent-foreground: 0 0% 100%; /* White */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 140 30% 85%;
+    --input: 140 30% 88%;
+    --ring: 147 50% 47%; /* Primary color for rings */
+    --chart-1: 147 50% 47%;
+    --chart-2: 146 50% 36%;
+    --chart-3: 140 50% 50%;
+    --chart-4: 150 50% 40%;
+    --chart-5: 130 50% 55%;
+    --radius: 0.25rem; /* For boxy design, results in 0px for rounded-sm */
+
+    /* Sidebar specific vars for light theme */
+    --sidebar-background: 140 70% 94%; /* Slightly different from main bg */
+    --sidebar-foreground: 146 25% 15%;
+    --sidebar-primary: 147 50% 47%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 146 50% 36%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 140 30% 80%;
+    --sidebar-ring: 147 50% 47%;
+  }
+
+  .dark {
+    --background: 140 15% 8%; /* Very Dark Desaturated Green Dark */
+    --foreground: 140 60% 90%; /* Light Green-White Dark */
+    --card: 140 15% 8%;
+    --card-foreground: 140 60% 90%;
+    --popover: 140 15% 8%;
+    --popover-foreground: 140 60% 90%;
+    --primary: 120 61% 50%; /* #32CD32 LimeGreen Dark */
+    --primary-foreground: 0 0% 0%; /* Black */
+    --secondary: 140 15% 12%; /* Slightly lighter dark for secondary */
+    --secondary-foreground: 140 60% 90%;
+    --muted: 140 15% 15%;
+    --muted-foreground: 140 50% 70%;
+    --accent: 146 50% 36%; /* #2E8B57 SeaGreen Dark */
+    --accent-foreground: 0 0% 100%; /* White */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 140 10% 20%;
+    --input: 140 10% 22%;
+    --ring: 120 61% 50%; /* Primary color for rings */
+    --chart-1: 120 61% 50%;
+    --chart-2: 146 50% 36%;
+    --chart-3: 130 60% 50%;
+    --chart-4: 150 60% 40%;
+    --chart-5: 110 60% 55%;
+    /* Sidebar specific vars for dark theme */
+    --sidebar-background: 140 15% 10%; /* Slightly different from main dark bg */
+    --sidebar-foreground: 140 60% 90%;
+    --sidebar-primary: 120 61% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 146 50% 36%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 140 10% 25%;
+    --sidebar-ring: 120 61% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--accent) / 0.7);
+  border-radius: 0px; /* Boxy scrollbar thumb */
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
