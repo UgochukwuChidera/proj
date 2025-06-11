@@ -1,25 +1,18 @@
 
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import ChangelogHeader from '@/components/layout/changelog-header'; // Updated import
 
 export const metadata: Metadata = {
-  title: 'Changelog', // Will be combined with RootLayout template to "LURH - Changelog"
+  title: 'Changelog', 
   description: 'Version history and updates for Landmark University Resource Hub.',
 };
 
 export default function ChangelogPage() {
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 min-h-[calc(100vh-8rem)]">
-      <div className="mb-8">
-        <Button variant="outline" asChild className="font-body shadow-sm hover:shadow-md transition-shadow">
-          <Link href="/">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Welcome Page
-          </Link>
-        </Button>
-      </div>
+      <ChangelogHeader /> {/* Replaced old button div with the new header component */}
 
       <header className="mb-10 text-center">
         <h1 className="font-headline text-4xl font-bold text-primary">

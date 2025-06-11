@@ -8,8 +8,8 @@ import AppClientLayout from './app-client-layout';
 export const metadata: Metadata = {
   metadataBase: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL) : new URL('http://localhost:9002'),
   title: {
-    default: 'Landmark University Resource Hub',
-    template: 'LURH - %s',
+    default: 'Welcome', // Updated default title for the landing page
+    template: 'LURH - %s', // Template for other pages
   },
   description: 'Manage and discover resources at Landmark University.',
   // Add other global metadata like openGraph, twitter, etc. if needed
