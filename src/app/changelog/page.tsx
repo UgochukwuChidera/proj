@@ -1,5 +1,9 @@
 
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Changelog', // Will be combined with RootLayout template to "LURH - Changelog"
@@ -9,6 +13,14 @@ export const metadata: Metadata = {
 export default function ChangelogPage() {
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 min-h-[calc(100vh-8rem)]">
+      <div className="mb-8">
+        <Button variant="outline" asChild className="font-body shadow-sm hover:shadow-md transition-shadow">
+          <Link href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Welcome Page
+          </Link>
+        </Button>
+      </div>
+
       <header className="mb-10 text-center">
         <h1 className="font-headline text-4xl font-bold text-primary">
           Application Changelog
@@ -18,32 +30,63 @@ export default function ChangelogPage() {
         </p>
       </header>
 
-      <div className="max-w-3xl mx-auto space-y-12">
-        <article className="pb-8 border-b border-border last:border-b-0">
-          <div className="mb-3">
-            <h2 className="font-headline text-2xl font-semibold text-foreground">
-              Version 1.0.0
-            </h2>
-            <p className="text-sm text-muted-foreground">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <Card className="shadow-md transition-shadow hover:shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl text-accent">Version 1.0.0</CardTitle>
+            <CardDescription>
               Released: YYYY-MM-DD {/* USER: Please replace YYYY-MM-DD with the actual release date */}
-            </p>
-          </div>
-          <div className="prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none text-foreground/90">
-            <h3 className="font-semibold text-foreground">Initial Release</h3>
-            <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>Secure user authentication (login and registration).</li>
-              <li>View, filter, and search available university resources.</li>
-              <li>Advanced search capabilities by keywords, year, type, and course code.</li>
-              <li>User profile management including avatar upload and name update.</li>
-              <li>Admin panel for uploading new resources.</li>
-              <li>Admin panel for user management (password resets).</li>
-              <li>Responsive, mobile-friendly design.</li>
-              <li>AI-powered chatbot assistant for application guidance.</li>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <h3 className="font-semibold text-lg text-foreground mb-3">Initial Release Highlights</h3>
+            <ul className="space-y-2">
+              {[
+                "Secure user authentication (login and registration).",
+                "View, filter, and search available university resources.",
+                "Advanced search capabilities by keywords, year, type, and course code.",
+                "User profile management including avatar upload and name update.",
+                "Admin panel for uploading new resources.",
+                "Admin panel for user management (password resets).",
+                "Responsive, mobile-friendly design.",
+                "AI-powered chatbot assistant for application guidance."
+              ].map((item, index) => (
+                <li key={index} className="flex items-start">
+                  <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-0.5 shrink-0" />
+                  <span className="text-foreground/90">{item}</span>
+                </li>
+              ))}
             </ul>
-          </div>
-        </article>
+          </CardContent>
+        </Card>
 
-        {/* Future versions will be added above this line as new <article> sections */}
+        {/* 
+        Example of a future entry structure:
+        <Card className="shadow-md transition-shadow hover:shadow-lg mt-8">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl text-accent">Version 0.9.0 (Beta)</CardTitle>
+            <CardDescription>Released: YYYY-MM-DD</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <h3 className="font-semibold text-lg text-foreground mb-3">Beta Features & Fixes</h3>
+            <ul className="space-y-2">
+              <li className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-0.5 shrink-0" />
+                <span className="text-foreground/90">Implemented new feature X for beta testing.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-0.5 shrink-0" />
+                <span className="text-foreground/90">Fixed a critical bug related to Y.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-0.5 shrink-0" />
+                <span className="text-foreground/90">Improved performance of Z module.</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+        Future versions will be added above this line as new <Card> sections 
+        */}
       </div>
     </div>
   );

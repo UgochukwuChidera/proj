@@ -5,11 +5,9 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { LogIn, UserPlus, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import type { Metadata } from 'next'; // Import Metadata type
 
 // Note: `export const metadata` is not used in "use client" components.
 // Title for this page will be set by RootLayout's default or template if not overridden by a parent server component.
-// To set a specific title for this client component page, its parent route segment (if any) or layout would need to be a server component exporting metadata.
 // For the root page.tsx, the RootLayout's metadata applies. We can set a specific default in RootLayout.
 
 export default function LandingPage() {
@@ -75,9 +73,9 @@ export default function LandingPage() {
       </main>
 
       <footer className="mt-16 text-sm text-muted-foreground">
-        <Link href="/changelog" className="hover:underline hover:text-primary">
-            Changelog (v1.0.0)
-        </Link>
+        <Button variant="link" asChild className="p-0 h-auto text-sm font-normal text-muted-foreground hover:text-primary hover:no-underline">
+          <Link href="/changelog">Changelog (v1.0.0)</Link>
+        </Button>
         <span className="mx-2">|</span>
         &copy; {new Date().getFullYear()} Landmark University. All rights reserved.
       </footer>
@@ -94,3 +92,4 @@ export default function LandingPage() {
 // Let's adjust RootLayout's metadata title for this in this set of changes.
 // The `metadata` object in `src/app/layout.tsx` has been updated to `title: { default: 'Welcome', template: 'LURH - %s' }`
 // This way, the landing page will have the title "LURH - Welcome".
+
