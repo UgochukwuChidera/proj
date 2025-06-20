@@ -241,11 +241,7 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
       <CardFooter className="p-4 pt-2 flex flex-wrap gap-2 items-center justify-between text-xs border-t mt-auto">
         <div className="flex gap-1.5 items-center overflow-hidden min-w-0 flex-grow">
             <Badge variant="secondary" className="font-normal shrink-0">{resource.year}</Badge>
-            {resource.keywords && resource.keywords.length > 0 && (
-                 <Badge variant="outline" className="font-normal truncate max-w-[calc(100%-7rem)] sm:max-w-[calc(100%-8rem)]" title={resource.keywords.join(', ')}>
-                    {resource.keywords[0]}{resource.keywords.length > 1 ? ', ...' : ''}
-                </Badge>
-            )}
+            {/* Keyword badges were previously here and are now removed */}
         </div>
         {isAdmin && (
            <AlertDialog>
@@ -277,4 +273,3 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
     </Card>
   );
 }
-
