@@ -4,8 +4,7 @@
 import type React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { AuthApiError, type AuthError, type Session, type User as SupabaseUser } from '@supabase/supabase-js';
-import { useToast } from '@/hooks/use-toast';
+import { type AuthError, type Session, type User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User { 
   id: string;
@@ -27,79 +26,83 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+
+// Helper function to process a Supabase user into our app's User object
+const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
+    if (!supabaseUser) return null;
+
+    let isAdmin = false;
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') { // Ignore "row not found" error
+        console.error('Error fetching profile for admin status:', profileError.message);
+      } else if (profile) {
+        isAdmin = profile.is_admin || false;
+      }
+    } catch (e) {
+        console.error('Error fetching user profile:', e);
+    }
+
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      name: supabaseUser.user_metadata?.name as string || supabaseUser.email?.split('@')[0] || 'User',
+      avatarUrl: supabaseUser.user_metadata?.avatar_url as string || `https://placehold.co/100x100.png?text=${(supabaseUser.user_metadata?.name as string || supabaseUser.email || 'U').charAt(0).toUpperCase()}`,
+      isAdmin: isAdmin,
+    };
+};
+
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  // isLoading is now only for the very first authentication check when the app loads.
   const [isLoading, setIsLoading] = useState(true); 
-  const { toast } = useToast();
 
   useEffect(() => {
+    // 1. Run an initial check to see if a session exists.
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const appUser = await processSupabaseUser(session?.user || null);
+        setUser(appUser);
+      } catch (e) {
+        console.error("Error checking initial session:", e);
+        setUser(null);
+      } finally {
+        // Crucially, set loading to false only after this first check completes.
+        setIsLoading(false);
+      }
+    };
+
+    checkInitialSession();
+
+    // 2. Set up a listener for subsequent auth changes (login, logout, token refresh).
+    // This listener will update the user state silently without triggering the global loader.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setIsLoading(true); 
-        try {
-          const supabaseUser = session?.user;
-          if (supabaseUser) {
-            let isAdmin = false;
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('is_admin')
-              .eq('id', supabaseUser.id)
-              .single();
-
-            if (profileError && profileError.code !== 'PGRST116') { 
-              console.error('Error fetching profile for admin status:', profileError.message);
-            } else if (profile) {
-              isAdmin = profile.is_admin || false;
-            }
-
-            const appUser: User = {
-              id: supabaseUser.id,
-              email: supabaseUser.email,
-              name: supabaseUser.user_metadata?.name as string || supabaseUser.email?.split('@')[0] || 'User',
-              avatarUrl: supabaseUser.user_metadata?.avatar_url as string || `https://placehold.co/100x100.png?text=${(supabaseUser.user_metadata?.name as string || supabaseUser.email || 'U').charAt(0).toUpperCase()}`,
-              isAdmin: isAdmin,
-            };
-            setUser(appUser);
-          } else {
-            setUser(null);
-          }
-        } catch (error: any) {
-          console.error("Error in onAuthStateChange handler:", error);
-          if (error instanceof AuthApiError && 
-              (error.message.includes('Invalid Refresh Token') || 
-               error.message.includes('Token not found') ||
-               error.status === 401 || error.status === 400 ||
-               (error.message.toLowerCase().includes("failed to fetch") && error.message.toLowerCase().includes("refresh")) 
-              )) {
-            console.warn("Invalid session token or refresh error detected in onAuthStateChange, attempting to sign out locally to clear state.", error.message);
-            await supabase.auth.signOut().catch(signOutError => {
-              console.error("Error during explicit signOut attempt after auth error:", signOutError);
-            });
-          }
-          setUser(null); 
-        } finally {
-          setIsLoading(false); 
-        }
+        const appUser = await processSupabaseUser(session?.user || null);
+        setUser(appUser);
       }
     );
 
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Removed toast from dependency array as it's stable, router was already removed
+  }, []);
 
   const login = async (email: string, password: string): Promise<{ error: AuthError | null }> => {
-    setIsLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    // User state will be updated by onAuthStateChange
-    setIsLoading(false);
+    // The onAuthStateChange listener will handle updating the user state.
     return { error };
   };
 
   const register = async (email: string, password: string, name: string): Promise<{ error: AuthError | null }> => {
-    setIsLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -109,48 +112,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       },
     });
-     if (error) {
-      setIsLoading(false);
-      return { error };
-    }
-    // If sign up is successful but requires email confirmation, user object might be in data.user
-    // If auto-confirm is on, session will be set and onAuthStateChange will handle it.
-    // If confirmation is needed, user object will be set in onAuthStateChange after confirmation.
-    // For now, we assume onAuthStateChange will handle the user state.
-    setIsLoading(false);
-    return { error: null };
+    // The onAuthStateChange listener will handle the state if auto-confirmation is on.
+    return { error };
   };
 
   const logout = async (): Promise<void> => {
-    setIsLoading(true);
     await supabase.auth.signOut();
-    // User state will be set to null by onAuthStateChange
-    setUser(null); // Explicitly set user to null immediately for faster UI update
-    setIsLoading(false);
+    // The onAuthStateChange listener will set the user to null.
   };
 
   const updateUserMetadata = async (metadata: { name?: string; avatarUrl?: string }): Promise<{ error: AuthError | null }> => {
-    setIsLoading(true);
-    const { data, error } = await supabase.auth.updateUser({
+    const { error } = await supabase.auth.updateUser({
       data: {
         name: metadata.name,
         avatar_url: metadata.avatarUrl,
       },
     });
-    if (!error && data.user) {
-      // Manually update local user state to reflect changes immediately
-      setUser(prevUser => {
-        if (!prevUser) return null;
-        // Fetch admin status again if necessary or assume it doesn't change on metadata update
-        // For simplicity, we keep the existing admin status
-        return {
-            ...prevUser,
-            name: data.user!.user_metadata.name as string || prevUser.name,
-            avatarUrl: data.user!.user_metadata.avatar_url as string || prevUser.avatarUrl,
-        };
-      });
-    }
-    setIsLoading(false);
+    // The onAuthStateChange listener (event: USER_UPDATED) will handle refreshing the user state.
     return { error };
   };
 
