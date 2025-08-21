@@ -1,23 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useCachedResources } from "@/hooks/useCachedResources";
 import { ResourceCard } from "./resource-card";
 import { FilterControls } from "./filter-controls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Search, Loader2, FilterX, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePathname } from "next/navigation";
-import { useCachedResources } from "@/hooks/useCachedResources";
 
 export function ResourceDisplayPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const pathname = usePathname();
-
-  // ✅ Use cached resources
   const { resources, isFetching, error, setResources } = useCachedResources();
 
-  // UI state (same as before)
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedType, setSelectedType] = useState("");
@@ -28,18 +23,51 @@ export function ResourceDisplayPage() {
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
   const [availableCourses, setAvailableCourses] = useState<string[]>([]);
 
-  // Fake filter handling (still applied client-side on cached data)
-  const filteredResources = resources.filter((r) => {
-    return (
-      (!searchTerm || r.name?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (!selectedYear || r.year?.toString() === selectedYear) &&
-      (!selectedType || r.type === selectedType) &&
-      (!selectedCourse || r.course === selectedCourse)
-    );
-  });
+  // derive available filters from cached resources
+  useEffect(() => {
+    if (!resources || resources.length === 0) return;
 
-  const handleResourceDeleted = (id: string) => {
-    setResources((prev) => prev.filter((r) => r.id !== id));
+    setAvailableYears(
+      [...new Set(resources.map((r) => r.year).filter(Boolean))].sort(
+        (a, b) => b - a
+      )
+    );
+    setAvailableTypes(
+      [...new Set(resources.map((r) => r.type).filter(Boolean))].sort()
+    );
+    setAvailableCourses(
+      [...new Set(resources.map((r) => r.course).filter(Boolean))].sort()
+    );
+  }, [resources]);
+
+  // apply filters client-side
+  const filteredResources = useMemo(() => {
+    return resources.filter((r) => {
+      const matchesTerm =
+        !searchTerm ||
+        r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.keywords?.some((kw) =>
+          kw.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      const matchesYear = !selectedYear || r.year === parseInt(selectedYear, 10);
+      const matchesType = !selectedType || r.type === selectedType;
+      const matchesCourse = !selectedCourse || r.course === selectedCourse;
+
+      return matchesTerm && matchesYear && matchesType && matchesCourse;
+    });
+  }, [resources, searchTerm, selectedYear, selectedType, selectedCourse]);
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSelectedYear("");
+    setSelectedType("");
+    setSelectedCourse("");
+  };
+
+  const handleResourceDeleted = (resourceId: string) => {
+    setResources((prev) => prev.filter((r) => r.id !== resourceId));
   };
 
   if (authLoading) {
@@ -58,7 +86,8 @@ export function ResourceDisplayPage() {
           <Search className="h-4 w-4" />
           <AlertTitle className="font-headline">Access Denied</AlertTitle>
           <AlertDescription>
-            You need to be logged in to view university resources.
+            You need to be logged in to view university resources. You should be
+            redirected shortly.
           </AlertDescription>
         </Alert>
       </div>
@@ -103,7 +132,7 @@ export function ResourceDisplayPage() {
           selectedCourse={selectedCourse}
           setSelectedCourse={setSelectedCourse}
           onApplyFilters={() => {}}
-          onResetAndRefresh={() => {}}
+          onResetAndRefresh={handleResetFilters}
           availableYears={availableYears}
           availableTypes={availableTypes}
           availableCourses={availableCourses}

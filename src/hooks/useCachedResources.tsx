@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Resource } from "@/lib/mock-data";
 
-// Global in-memory cache (reset on full reload)
 let cachedResources: Resource[] | null = null;
 
 export function useCachedResources() {
@@ -11,7 +10,7 @@ export function useCachedResources() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (cachedResources) return; // ✅ Already cached
+    if (cachedResources) return; // already fetched once
 
     const fetchResources = async () => {
       setIsFetching(true);
@@ -36,8 +35,4 @@ export function useCachedResources() {
   }, []);
 
   return { resources, isFetching, error, setResources };
-}
-
-export function clearCachedResources() {
-  cachedResources = null;
 }
