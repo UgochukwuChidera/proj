@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Resource } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
@@ -37,24 +37,23 @@ export function ResourceDisplayPage() {
       .from('resources')
       .select('year', { count: 'exact', head: false }) 
       .order('year', { ascending: false });
-    if (yearsError) console.error("Error fetching years:", yearsError.message, yearsError.details, yearsError.hint, yearsError.code);
+    if (yearsError) console.error("Error fetching years:", yearsError.message);
     else setAvailableYears([...new Set(yearsData?.map(r => r.year) || [])].sort((a,b) => b-a));
 
     // Fetch distinct types
     const { data: typesData, error: typesError } = await supabase
       .from('resources')
       .select('type', { count: 'exact', head: false });
-    if (typesError) console.error("Error fetching types:", typesError.message, typesError.details, typesError.hint, typesError.code);
+    if (typesError) console.error("Error fetching types:", typesError.message);
     else setAvailableTypes([...new Set(typesData?.map(r => r.type) || [])].sort());
     
     // Fetch distinct courses
     const { data: coursesData, error: coursesError } = await supabase
       .from('resources')
       .select('course', { count: 'exact', head: false });
-    if (coursesError) console.error("Error fetching courses:", coursesError.message, coursesError.details, coursesError.hint, coursesError.code);
+    if (coursesError) console.error("Error fetching courses:", coursesError.message);
     else setAvailableCourses([...new Set(coursesData?.map(r => r.course) || [])].sort());
   }, []);
-
 
   const fetchResources = useCallback(async (filters?: { term?: string; year?: string; type?: string; course?: string }) => {
     setIsLoading(true);
@@ -80,14 +79,9 @@ export function ResourceDisplayPage() {
     const { data, error: dbError } = await query;
 
     if (dbError) {
-      console.error('Error fetching resources. Message:', dbError.message, 'Details:', dbError.details, 'Hint:', dbError.hint, 'Code:', dbError.code);
       let detailedErrorMessage = `Failed to load resources. Supabase error: "${dbError.message || 'No specific message provided by Supabase'}".`;
-      if (dbError.code) detailedErrorMessage += ` (Code: ${dbError.code})`;
       if (dbError.details) detailedErrorMessage += ` Details: ${dbError.details}.`;
       if (dbError.hint) detailedErrorMessage += ` Hint: ${dbError.hint}.`;
-      detailedErrorMessage += ` Common causes: 
-1. The 'resources' table might not exist or RLS policies prevent access. 
-2. Column names might not match or data types are incorrect.`;
       
       setError(detailedErrorMessage);
       setResources([]);
@@ -98,26 +92,24 @@ export function ResourceDisplayPage() {
   }, []);
 
   useEffect(() => {
-    let redirectTimer: NodeJS.Timeout;
-    if (!authLoading) {
-      if (isAuthenticated) {
-        fetchResources(); 
-        fetchFilterOptions();
-      } else {
-        setIsLoading(false); 
-        setResources([]); 
-        setError("Please log in to view resources. Redirecting to login...");
-        redirectTimer = setTimeout(() => {
-          router.push('/login');
-        }, 4000); // Redirect after 4 seconds
-      }
+    // This effect handles the initial data load and auth state changes.
+    if (authLoading) {
+      // If auth is still loading, we wait. The component will show a loader.
+      return;
     }
-    return () => {
-      if (redirectTimer) {
-        clearTimeout(redirectTimer);
-      }
-    };
-  }, [authLoading, isAuthenticated, fetchResources, fetchFilterOptions, router]);
+
+    if (isAuthenticated) {
+      // Once auth is confirmed, fetch data.
+      fetchResources();
+      fetchFilterOptions();
+    } else {
+      // If user is not authenticated, don't fetch data.
+      // ConditionalAppShell will handle the redirect to login.
+      // We can clear resources and stop the loader here for a clean state.
+      setIsLoading(false);
+      setResources([]);
+    }
+  }, [authLoading, isAuthenticated, fetchResources, fetchFilterOptions]);
 
 
   const handleApplyFilters = () => {
@@ -139,9 +131,11 @@ export function ResourceDisplayPage() {
 
   const handleResourceDeleted = (resourceId: string) => {
     setResources(prevResources => prevResources.filter(r => r.id !== resourceId));
-    toast({ title: "Resource Deleted", description: "The resource has been successfully removed." });
+    // The toast is now shown in the ResourceCard component for better context
   };
-
+  
+  // This is the primary loading indicator for the page.
+  // It shows when auth state is being determined OR when resources are being fetched.
   if (authLoading || (isLoading && isAuthenticated)) { 
     return (
       <div className="container mx-auto py-2 text-center">
@@ -151,6 +145,7 @@ export function ResourceDisplayPage() {
     );
   }
 
+  // This state is handled by ConditionalAppShell, but it's good practice to have a fallback.
   if (!isAuthenticated && !authLoading) {
      return (
       <div className="container mx-auto py-2">
@@ -158,7 +153,7 @@ export function ResourceDisplayPage() {
           <Search className="h-4 w-4" />
           <AlertTitle className="font-headline">Access Denied</AlertTitle>
           <AlertDescription>
-            {error || "You need to be logged in to view university resources. Redirecting to login..."}
+            You need to be logged in to view university resources. You will be redirected shortly.
           </AlertDescription>
         </Alert>
       </div>
@@ -175,7 +170,7 @@ export function ResourceDisplayPage() {
         </Button>
       </div>
       
-      {error && !resources.length && ( // Only show this main error if there are no resources AND an error exists
+      {error && (
         <Alert variant="destructive" className="mb-6 whitespace-pre-wrap">
           <AlertTitle className="font-headline">Error Loading Resources</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -204,7 +199,7 @@ export function ResourceDisplayPage() {
       {isLoading ? (
          <div className="text-center py-10">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto my-4" />
-            <p>Fetching resources based on your criteria...</p>
+            <p>Fetching resources...</p>
          </div>
       ) : resources.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -223,7 +218,7 @@ export function ResourceDisplayPage() {
             <Search className="h-4 w-4" />
             <AlertTitle className="font-headline">No Resources Found</AlertTitle>
             <AlertDescription>
-              Try adjusting your search terms or filters, or ensure the database is populated and RLS policies allow access.
+              Try adjusting your search terms or filters.
             </AlertDescription>
           </Alert>
         )
@@ -231,4 +226,3 @@ export function ResourceDisplayPage() {
     </div>
   );
 }
-

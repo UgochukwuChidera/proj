@@ -29,7 +29,7 @@ const typeIcons: Record<string, React.ElementType> = {
 };
 
 const FILE_STORAGE_BUCKET = 'resource-files'; 
-const EDGE_FUNCTION_SIGNED_URL_ENDPOINT = 'generateUrl'; // Updated endpoint name
+const EDGE_FUNCTION_SIGNED_URL_ENDPOINT = 'generateUrl';
 
 const formatBytes = (bytes?: number, decimals = 2) => {
   if (bytes === undefined || bytes === null || bytes === 0) return '0 Bytes';
@@ -46,7 +46,7 @@ const getDisplayIcon = (resource: Resource): React.ElementType => {
     if (mimeType.startsWith('image/')) return ImageIcon;
     if (mimeType === 'application/pdf') return FileText;
     if (mimeType.startsWith('video/')) return Video;
-    if (mimeType.startsWith('audio/')) return MonitorPlay; // Example: could be specific icon for audio
+    if (mimeType.startsWith('audio/')) return MonitorPlay;
     if (mimeType.startsWith('application/zip') || mimeType.startsWith('application/x-rar-compressed') || mimeType.startsWith('application/x-7z-compressed') || mimeType.startsWith('application/gzip')) return FileArchive;
     if (mimeType.startsWith('text/html') || mimeType.startsWith('application/xml') || mimeType.startsWith('application/json')) return FileCode;
     if (mimeType.startsWith('text/csv') || mimeType.startsWith('application/vnd.ms-excel') || mimeType.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) return FileSpreadsheet;
@@ -68,12 +68,8 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
     let storageErrorOccurred = false;
     let storageErrorMessage = '';
 
-    console.log(`Resource Card: Initiating delete for resource ID: ${resource.id}, Name: "${resource.name}"`);
-
-    // Path construction based on upload logic: public/${resourceId}/${fileName}
     if (resource.file_name && resource.id) {
       const filePathForStorage = `public/${resource.id}/${resource.file_name}`; 
-      console.log(`Resource Card: Attempting to delete associated file. Path: '${filePathForStorage}', Bucket: ${FILE_STORAGE_BUCKET}`);
       try {
         const { error: storageError } = await supabase
           .storage
@@ -81,26 +77,18 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
           .remove([filePathForStorage]);
 
         if (storageError) {
-          if (storageError.message.includes("Not found") || storageError.message.includes("The resource was not found")) {
-            console.warn(`Resource Card: Storage file '${filePathForStorage}' not found during deletion (possibly already deleted or path mismatch). Message: ${storageError.message}`);
+          if (storageError.message.includes("Not found")) {
+            console.warn(`Storage file '${filePathForStorage}' not found during deletion.`);
           } else {
-            console.error("Resource Card: Error deleting file from storage:", JSON.stringify(storageError, null, 2));
             storageErrorOccurred = true;
-            storageErrorMessage = `Storage delete error: ${storageError.message}. Check RLS policies on the '${FILE_STORAGE_BUCKET}' bucket.`;
+            storageErrorMessage = `Storage delete error: ${storageError.message}.`;
           }
         } else {
-          console.log(`Resource Card: Successfully deleted '${filePathForStorage}' from storage bucket '${FILE_STORAGE_BUCKET}'.`);
           storageFileDeleted = true;
         }
       } catch (e: any) {
-        console.error("Resource Card: Exception during storage file deletion attempt. Error:", e.message, e.stack);
         storageErrorOccurred = true;
         storageErrorMessage = `File deletion exception: ${e.message}.`;
-      }
-    } else {
-      console.log("Resource Card: No file_name or resource.id; skipping storage deletion.");
-      if (resource.file_url) { 
-         storageErrorMessage = 'File details (name/id) missing for constructing storage path; file not deleted from storage.';
       }
     }
 
@@ -112,10 +100,9 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
     setIsDeleting(false);
 
     if (dbError) {
-      console.error("Resource Card: Error deleting resource from DB:", JSON.stringify(dbError, null, 2));
       toast({
         title: 'DB Record Deletion Failed',
-        description: `Could not delete resource record: ${dbError.message}. Check RLS policies on 'resources' table.`,
+        description: `Could not delete resource record: ${dbError.message}.`,
         variant: 'destructive',
       });
     } else {
@@ -123,16 +110,13 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
       let toastDescription = `"${resource.name}" database record removed.`;
       let toastVariant: "default" | "destructive" = "default";
 
-      if (resource.file_name && resource.id) { // Check if there was a file to begin with
+      if (resource.file_name && resource.id) {
         if (storageFileDeleted) {
-          toastDescription += ' Associated file also deleted from storage.';
+          toastDescription += ' Associated file also deleted.';
         } else if (storageErrorOccurred) {
           toastTitle = 'DB Record Deleted, Storage Issue';
-          toastDescription += ` Associated file NOT deleted from storage. ${storageErrorMessage}`;
+          toastDescription += ` Associated file NOT deleted. ${storageErrorMessage}`;
           toastVariant = "destructive"; 
-        } else {
-          // This case covers "file not found" or other non-error scenarios where it wasn't deleted but not due to a permission error etc.
-          toastDescription += ` ${storageErrorMessage || 'Associated file in storage: Status undetermined or file not found (may have been deleted previously or path issue).'}`;
         }
       }
       toast({ title: toastTitle, description: toastDescription, variant: toastVariant, duration: storageErrorOccurred ? 10000 : 5000 });
@@ -142,23 +126,18 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
 
   const handleDownload = async () => {
     if (!resource.file_name || !resource.id) {
-      toast({ title: 'Download Error', description: 'File details (name or ID) missing for download.', variant: 'destructive' });
+      toast({ title: 'Download Error', description: 'File details missing for download.', variant: 'destructive' });
       return;
     }
     setIsDownloading(true);
     try {
-      // The file path in the bucket is constructed based on how it was uploaded
-      // (see UploadResourceClientPage.tsx: `public/${resourceId}/${file.name}`)
       const filePathInBucket = `public/${resource.id}/${resource.file_name}`;
       
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
-        toast({ title: 'Authentication Error', description: 'Could not retrieve current session. Please re-login.', variant: 'destructive' });
-        setIsDownloading(false);
-        return;
+        throw new Error('Could not retrieve current session. Please re-login.');
       }
 
-      // Call the Supabase Edge Function to get a signed URL
       const { data: functionResponse, error: functionError } = await supabase.functions.invoke(
         EDGE_FUNCTION_SIGNED_URL_ENDPOINT, 
         {
@@ -170,27 +149,23 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
       );
 
       if (functionError) {
-        console.error('Edge function invocation error:', functionError);
-        const errorDetails = functionError.context?.json ? JSON.stringify(functionError.context.json()) : functionError.message;
-        throw new Error(`Failed to get download URL from function. Details: ${errorDetails}`);
+        throw new Error(`Failed to get download URL: ${functionError.message}`);
       }
       
       const responseData = functionResponse as { signedUrl?: string; error?: string };
 
       if (responseData.error || !responseData.signedUrl) {
-        throw new Error(responseData.error || 'Signed URL not found in function response.');
+        throw new Error(responseData.error || 'Signed URL not found in response.');
       }
 
-      // Programmatically trigger download
       const link = document.createElement('a');
       link.href = responseData.signedUrl;
-      link.setAttribute('download', resource.file_name || 'download'); // Use original filename
+      link.setAttribute('download', resource.file_name || 'download');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
     } catch (error: any) {
-      console.error('Download error:', error);
       toast({
         title: 'Download Failed',
         description: error.message || 'Could not retrieve the file for download.',
@@ -217,7 +192,7 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow min-h-0">
         <p className="text-sm text-foreground/80 line-clamp-3 mb-3 h-[3.75rem] overflow-hidden" title={resource.description}>{resource.description}</p>
-        {resource.file_name && resource.id && ( // Ensure resource.id and file_name are present for download
+        {resource.file_name && resource.id && (
           <div className="mt-2 w-full">
             <Button 
               variant="outline" 
@@ -241,7 +216,6 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
       <CardFooter className="p-4 pt-2 flex flex-wrap gap-2 items-center justify-between text-xs border-t mt-auto">
         <div className="flex gap-1.5 items-center overflow-hidden min-w-0 flex-grow">
             <Badge variant="secondary" className="font-normal shrink-0">{resource.year}</Badge>
-            {/* Keyword badges were previously here and are now removed */}
         </div>
         {isAdmin && (
            <AlertDialog>
