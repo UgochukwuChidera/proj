@@ -17,7 +17,7 @@ export function ResourceDisplayPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [resources, setResources] = useState<Resource[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
@@ -56,7 +56,7 @@ export function ResourceDisplayPage() {
   }, []);
 
   const fetchResources = useCallback(async (filters?: { term?: string; year?: string; type?: string; course?: string }) => {
-    setIsLoading(true);
+    setIsFetching(true);
     setError(null);
     
     let query = supabase.from('resources').select('*');
@@ -88,25 +88,20 @@ export function ResourceDisplayPage() {
     } else {
       setResources(data as Resource[]);
     }
-    setIsLoading(false);
+    setIsFetching(false);
   }, []);
 
   useEffect(() => {
-    // This effect handles the initial data load and auth state changes.
     if (authLoading) {
-      // If auth is still loading, we wait. The component will show a loader.
+      // Wait for the initial authentication check to complete
       return;
     }
-
     if (isAuthenticated) {
-      // Once auth is confirmed, fetch data.
       fetchResources();
       fetchFilterOptions();
     } else {
-      // If user is not authenticated, don't fetch data.
-      // ConditionalAppShell will handle the redirect to login.
-      // We can clear resources and stop the loader here for a clean state.
-      setIsLoading(false);
+      // If user is not authenticated, clear data and stop loading.
+      setIsFetching(false);
       setResources([]);
     }
   }, [authLoading, isAuthenticated, fetchResources, fetchFilterOptions]);
@@ -131,29 +126,25 @@ export function ResourceDisplayPage() {
 
   const handleResourceDeleted = (resourceId: string) => {
     setResources(prevResources => prevResources.filter(r => r.id !== resourceId));
-    // The toast is now shown in the ResourceCard component for better context
   };
   
-  // This is the primary loading indicator for the page.
-  // It shows when auth state is being determined OR when resources are being fetched.
-  if (authLoading || (isLoading && isAuthenticated)) { 
+  if (authLoading) { 
     return (
       <div className="container mx-auto py-2 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto my-8" />
-        <p>Loading resources...</p>
+        <p>Verifying access...</p>
       </div>
     );
   }
 
-  // This state is handled by ConditionalAppShell, but it's good practice to have a fallback.
-  if (!isAuthenticated && !authLoading) {
+  if (!isAuthenticated) {
      return (
       <div className="container mx-auto py-2">
         <Alert variant="destructive" className="mt-8">
           <Search className="h-4 w-4" />
           <AlertTitle className="font-headline">Access Denied</AlertTitle>
           <AlertDescription>
-            You need to be logged in to view university resources. You will be redirected shortly.
+            You need to be logged in to view university resources. You should be redirected shortly.
           </AlertDescription>
         </Alert>
       </div>
@@ -192,11 +183,11 @@ export function ResourceDisplayPage() {
           availableYears={availableYears}
           availableTypes={availableTypes}
           availableCourses={availableCourses}
-          isFetching={isLoading}
+          isFetching={isFetching}
         />
       )}
 
-      {isLoading ? (
+      {isFetching ? (
          <div className="text-center py-10">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto my-4" />
             <p>Fetching resources...</p>
