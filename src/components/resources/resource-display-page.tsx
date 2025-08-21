@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import type { Resource } from "@/lib/mock-data";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/auth-context";
@@ -9,12 +10,15 @@ import { FilterControls } from "./filter-controls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Search, Loader2, FilterX, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export function ResourceDisplayPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const pathname = usePathname();
   const [resources, setResources] = useState<Resource[]>([]);
-  const [isFetching, setIsFetching] = useState(false);
+  const [isFetching, setIsFetching] = useState(false); // ✅ start as false
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -94,29 +98,42 @@ export function ResourceDisplayPage() {
         setError(detailedErrorMessage);
         setResources([]);
       } finally {
-        setIsFetching(false);
+        setIsFetching(false); // ✅ ensures spinner clears
       }
     },
     []
   );
 
+  // 🔑 Run on auth state resolution and Supabase auth events
   useEffect(() => {
     let ignore = false;
 
-    if (authLoading) return;
-
-    if (isAuthenticated) {
+    if (!authLoading && isAuthenticated) {
       fetchResources();
       fetchFilterOptions();
-    } else {
+    } else if (!authLoading && !isAuthenticated) {
       if (!ignore) {
         setResources([]);
         setIsFetching(false);
       }
     }
 
+    // 👇 subscribe to Supabase auth changes
+    const { data: subscription } = supabase.auth.onAuthStateChange(() => {
+      if (!ignore) {
+        if (isAuthenticated) {
+          fetchResources();
+          fetchFilterOptions();
+        } else {
+          setResources([]);
+          setIsFetching(false);
+        }
+      }
+    });
+
     return () => {
-      ignore = true; // cleanup to avoid setting state after unmount
+      ignore = true;
+      subscription?.subscription.unsubscribe();
     };
   }, [authLoading, isAuthenticated, fetchResources, fetchFilterOptions]);
 
@@ -141,7 +158,7 @@ export function ResourceDisplayPage() {
     setResources((prev) => prev.filter((r) => r.id !== resourceId));
   };
 
-  // -------- UI ----------
+  // ---------------- UI ----------------
   if (authLoading) {
     return (
       <div className="container mx-auto py-2 text-center">
