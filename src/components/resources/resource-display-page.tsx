@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,16 +10,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Search, Loader2, FilterX, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export function ResourceDisplayPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [resources, setResources] = useState<Resource[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -32,80 +32,94 @@ export function ResourceDisplayPage() {
   const [availableCourses, setAvailableCourses] = useState<string[]>([]);
 
   const fetchFilterOptions = useCallback(async () => {
-    // Fetch distinct years
-    const { data: yearsData, error: yearsError } = await supabase
-      .from('resources')
-      .select('year', { count: 'exact', head: false }) 
-      .order('year', { ascending: false });
-    if (yearsError) console.error("Error fetching years:", yearsError.message);
-    else setAvailableYears([...new Set(yearsData?.map(r => r.year) || [])].sort((a,b) => b-a));
+    try {
+      const { data: yearsData, error: yearsError } = await supabase
+        .from('resources')
+        .select('year')
+        .order('year', { ascending: false });
 
-    // Fetch distinct types
-    const { data: typesData, error: typesError } = await supabase
-      .from('resources')
-      .select('type', { count: 'exact', head: false });
-    if (typesError) console.error("Error fetching types:", typesError.message);
-    else setAvailableTypes([...new Set(typesData?.map(r => r.type) || [])].sort());
-    
-    // Fetch distinct courses
-    const { data: coursesData, error: coursesError } = await supabase
-      .from('resources')
-      .select('course', { count: 'exact', head: false });
-    if (coursesError) console.error("Error fetching courses:", coursesError.message);
-    else setAvailableCourses([...new Set(coursesData?.map(r => r.course) || [])].sort());
+      if (!yearsError) {
+        setAvailableYears(
+          [...new Set(yearsData?.map(r => r.year) || [])].sort((a, b) => b - a)
+        );
+      }
+
+      const { data: typesData, error: typesError } = await supabase
+        .from('resources')
+        .select('type');
+      if (!typesError) {
+        setAvailableTypes([...new Set(typesData?.map(r => r.type) || [])].sort());
+      }
+
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('resources')
+        .select('course');
+      if (!coursesError) {
+        setAvailableCourses(
+          [...new Set(coursesData?.map(r => r.course) || [])].sort()
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching filter options:", err);
+    }
   }, []);
 
-  const fetchResources = useCallback(async (filters?: { term?: string; year?: string; type?: string; course?: string }) => {
-    setIsFetching(true);
-    setError(null);
-    
-    let query = supabase.from('resources').select('*');
+  const fetchResources = useCallback(
+    async (filters?: {
+      term?: string;
+      year?: string;
+      type?: string;
+      course?: string;
+    }) => {
+      setIsFetching(true);
+      setError(null);
 
-    if (filters?.term) {
-      query = query.or(`name.ilike.%${filters.term}%,description.ilike.%${filters.term}%,keywords.cs.{${filters.term}}`);
-    }
-    if (filters?.year) {
-      query = query.eq('year', parseInt(filters.year, 10));
-    }
-    if (filters?.type) {
-      query = query.eq('type', filters.type);
-    }
-    if (filters?.course) {
-      query = query.eq('course', filters.course);
-    }
+      try {
+        let query = supabase.from('resources').select('*');
 
-    query = query.order('created_at', { ascending: false }); 
+        if (filters?.term) {
+          query = query.or(
+            `name.ilike.%${filters.term}%,description.ilike.%${filters.term}%,keywords.cs.{${filters.term}}`
+          );
+        }
+        if (filters?.year)
+          query = query.eq('year', parseInt(filters.year, 10));
+        if (filters?.type) query = query.eq('type', filters.type);
+        if (filters?.course) query = query.eq('course', filters.course);
 
-    const { data, error: dbError } = await query;
+        const { data, error: dbError } = await query.order('created_at', {
+          ascending: false,
+        });
 
-    if (dbError) {
-      let detailedErrorMessage = `Failed to load resources. Supabase error: "${dbError.message || 'No specific message provided by Supabase'}".`;
-      if (dbError.details) detailedErrorMessage += ` Details: ${dbError.details}.`;
-      if (dbError.hint) detailedErrorMessage += ` Hint: ${dbError.hint}.`;
-      
-      setError(detailedErrorMessage);
-      setResources([]);
-    } else {
-      setResources(data as Resource[]);
-    }
-    setIsFetching(false);
-  }, []);
+        if (dbError) throw dbError;
+        setResources(data as Resource[]);
+      } catch (err: any) {
+        let detailedErrorMessage = `Failed to load resources. Supabase error: "$${err.message ||
+          'No specific message provided by Supabase'}".`;
+        if (err.details) detailedErrorMessage += ` Details: ${err.details}.`;
+        if (err.hint) detailedErrorMessage += ` Hint: ${err.hint}.`;
 
+        setError(detailedErrorMessage);
+        setResources([]);
+      } finally {
+        setIsFetching(false);
+      }
+    },
+    []
+  );
+
+  // 🔑 Always refetch when page mounts, auth state changes, or user navigates back
   useEffect(() => {
-    if (authLoading) {
-      // Wait for the initial authentication check to complete
-      return;
-    }
+    if (authLoading) return;
+
     if (isAuthenticated) {
       fetchResources();
       fetchFilterOptions();
     } else {
-      // If user is not authenticated, clear data and stop loading.
       setIsFetching(false);
       setResources([]);
     }
-  }, [authLoading, isAuthenticated, fetchResources, fetchFilterOptions]);
-
+  }, [pathname, authLoading, isAuthenticated, fetchResources, fetchFilterOptions]);
 
   const handleApplyFilters = () => {
     fetchResources({
@@ -115,20 +129,20 @@ export function ResourceDisplayPage() {
       course: selectedCourse,
     });
   };
-  
+
   const handleResetFiltersAndRefresh = () => {
     setSearchTerm('');
     setSelectedYear('');
     setSelectedType('');
     setSelectedCourse('');
-    fetchResources(); 
+    fetchResources();
   };
 
   const handleResourceDeleted = (resourceId: string) => {
     setResources(prevResources => prevResources.filter(r => r.id !== resourceId));
   };
-  
-  if (authLoading) { 
+
+  if (authLoading) {
     return (
       <div className="container mx-auto py-2 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto my-8" />
@@ -138,13 +152,14 @@ export function ResourceDisplayPage() {
   }
 
   if (!isAuthenticated) {
-     return (
+    return (
       <div className="container mx-auto py-2">
         <Alert variant="destructive" className="mt-8">
           <Search className="h-4 w-4" />
           <AlertTitle className="font-headline">Access Denied</AlertTitle>
           <AlertDescription>
-            You need to be logged in to view university resources. You should be redirected shortly.
+            You need to be logged in to view university resources. You should be
+            redirected shortly.
           </AlertDescription>
         </Alert>
       </div>
@@ -154,13 +169,23 @@ export function ResourceDisplayPage() {
   return (
     <div className="container mx-auto py-2">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="font-headline text-3xl font-bold text-primary">University Resources</h1>
-        <Button variant="outline" onClick={() => setAreFiltersVisible(!areFiltersVisible)} className="font-body">
-          {areFiltersVisible ? <FilterX className="mr-2 h-4 w-4" /> : <SlidersHorizontal className="mr-2 h-4 w-4" />}
+        <h1 className="font-headline text-3xl font-bold text-primary">
+          University Resources
+        </h1>
+        <Button
+          variant="outline"
+          onClick={() => setAreFiltersVisible(!areFiltersVisible)}
+          className="font-body"
+        >
+          {areFiltersVisible ? (
+            <FilterX className="mr-2 h-4 w-4" />
+          ) : (
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+          )}
           {areFiltersVisible ? 'Hide Filters' : 'Show Filters'}
         </Button>
       </div>
-      
+
       {error && (
         <Alert variant="destructive" className="mb-6 whitespace-pre-wrap">
           <AlertTitle className="font-headline">Error Loading Resources</AlertTitle>
@@ -188,23 +213,23 @@ export function ResourceDisplayPage() {
       )}
 
       {isFetching ? (
-         <div className="text-center py-10">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto my-4" />
-            <p>Fetching resources...</p>
-         </div>
+        <div className="text-center py-10">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto my-4" />
+          <p>Fetching resources...</p>
+        </div>
       ) : resources.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {resources.map((resource) => (
-            <ResourceCard 
-                key={resource.id} 
-                resource={resource} 
-                isAdmin={user?.isAdmin || false}
-                onDeleteSuccess={handleResourceDeleted}
+          {resources.map(resource => (
+            <ResourceCard
+              key={resource.id}
+              resource={resource}
+              isAdmin={user?.isAdmin || false}
+              onDeleteSuccess={handleResourceDeleted}
             />
           ))}
         </div>
       ) : (
-        !error && ( 
+        !error && (
           <Alert className="mt-8">
             <Search className="h-4 w-4" />
             <AlertTitle className="font-headline">No Resources Found</AlertTitle>
