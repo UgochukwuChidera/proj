@@ -17,7 +17,9 @@ export default function ChangelogHeader() {
         className="font-body shadow-sm hover:shadow-md transition-shadow"
       >
         <Link href="/">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Welcome Page
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          <span className="hidden md:inline">Back to Welcome Page</span>
+          <span className="md:hidden">Back</span>
         </Link>
       </Button>
 
@@ -29,7 +31,8 @@ export default function ChangelogHeader() {
             className="font-body shadow-sm hover:shadow-md transition-shadow"
           >
             <Link href="/login">
-              <LogIn className="mr-2 h-4 w-4" /> Login
+              <LogIn className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Login</span>
             </Link>
           </Button>
           <Button 
@@ -39,7 +42,8 @@ export default function ChangelogHeader() {
             className="font-body shadow-sm hover:shadow-md transition-shadow"
           >
             <Link href="/register">
-              <UserPlus className="mr-2 h-4 w-4" /> Register
+              <UserPlus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Register</span>
             </Link>
           </Button>
         </div>
