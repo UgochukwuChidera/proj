@@ -2,7 +2,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import { Search, UserCircle, MessageSquare, UploadCloud, Users } from 'lucide-react'; 
 import { useAuth } from '@/contexts/auth-context';
 
@@ -17,11 +17,16 @@ const navItems = [
 export function SidebarNavItems() {
   const pathname = usePathname();
   const { isAuthenticated, user } = useAuth();
+  const { setOpenMobile } = useSidebar(); // Hook to control mobile sidebar
 
   const isActive = (href: string) => {
     if (href === '/resources') return pathname === href || pathname.startsWith(href + '/');
     if (href === '/') return pathname === href;
     return pathname.startsWith(href);
+  };
+  
+  const handleLinkClick = () => {
+    setOpenMobile(false); // Close mobile sidebar on link click
   };
 
   return (
@@ -37,6 +42,7 @@ export function SidebarNavItems() {
           <SidebarMenuItem key={item.href}>
             <Link href={item.href} passHref legacyBehavior>
               <SidebarMenuButton
+                onClick={handleLinkClick}
                 isActive={isActive(item.href)}
                 tooltip={{ children: item.label, className:"font-body"}}
                 className="font-body"
