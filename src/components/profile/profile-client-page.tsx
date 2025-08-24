@@ -24,8 +24,6 @@ export function ProfileClientPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // ConditionalAppShell handles redirect for unauthenticated users trying to access this page.
-    // So, we only need to populate form if user is authenticated and loaded.
     if (!authLoading && isAuthenticated && user) {
       setName(user.name || '');
       setEmail(user.email || '');
@@ -36,37 +34,31 @@ export function ProfileClientPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setIsSubmitting(true);
-
-    let metadataAttempted = false;
-    let metadataUpdated = false;
-
+    
     const metadataUpdates: { name?: string; avatarUrl?: string } = {};
     if (name !== (user.name || '')) {
         metadataUpdates.name = name;
-        metadataAttempted = true;
     }
     if (avatarUrlInput !== (user.avatarUrl || '')) {
         metadataUpdates.avatarUrl = avatarUrlInput;
-        metadataAttempted = true;
+    }
+
+    if (Object.keys(metadataUpdates).length === 0) {
+      toast({ title: 'No Changes Detected', description: 'Your profile information remains the same.' });
+      return;
     }
     
-    if (Object.keys(metadataUpdates).length > 0) {
-      const { error } = await updateUserMetadata(metadataUpdates);
-      if (error) {
-        toast({ title: 'Profile Update Failed', description: `Could not update profile: ${error.message}`, variant: 'destructive' });
-      } else {
-        metadataUpdated = true;
-      }
-    }
+    setIsSubmitting(true);
+
+    const { user: updatedUser, error } = await updateUserMetadata(metadataUpdates);
     
-    if (metadataUpdated) {
+    if (error) {
+      toast({ title: 'Profile Update Failed', description: `Could not update profile: ${error.message}`, variant: 'destructive' });
+    } else if (updatedUser) {
       toast({ title: 'Profile Updated', description: 'Your name and/or avatar have been saved.' });
-    } else if (metadataAttempted) {
-      // Error already shown by updateUserMetadata toast or no actual update was needed despite form changes
-    } else {
-      toast({ title: 'No Changes Detected', description: 'Your profile information remains the same.', variant: 'default' });
+      // The auth context will update the user state, and useEffect will sync the form fields.
     }
+    
     setIsSubmitting(false);
   };
   
@@ -74,13 +66,8 @@ export function ProfileClientPage() {
     setIsLoggingOut(true); 
     await logout();
     router.push('/login'); 
-    // setIsLoggingOut(false); // Component will redirect, state cleanup not critical here
   };
 
-  // If auth is loading, ConditionalAppShell will show a global loader.
-  // If not authenticated after loading, ConditionalAppShell will redirect.
-  // So, this component should only render its content when authenticated.
-  // The checks below are fallbacks or for scenarios where this page might be rendered outside ConditionalAppShell.
   if (authLoading) {
     return (
       <div className="flex h-full items-center justify-center p-4">
@@ -91,7 +78,6 @@ export function ProfileClientPage() {
   }
   
   if (!isAuthenticated && !authLoading) {
-     // This state should be handled by ConditionalAppShell redirecting to /login
      return (
         <div className="flex h-screen flex-col items-center justify-center bg-background text-foreground">
           <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
@@ -100,7 +86,7 @@ export function ProfileClientPage() {
       );
   }
 
-  if (!user) { // Should not happen if isAuthenticated is true, but as a safeguard
+  if (!user) {
     return (
       <div className="flex h-full items-center justify-center p-4">
         <p>User data not available. Redirecting...</p>

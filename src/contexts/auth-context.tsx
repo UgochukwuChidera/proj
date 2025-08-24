@@ -2,7 +2,7 @@
 "use client";
 
 import type React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { type AuthError, type Session, type User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -21,11 +21,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   register: (email: string, password: string, name: string) => Promise<{ error: AuthError | null }>;
   logout: () => Promise<void>;
-  updateUserMetadata: (metadata: { name?: string; avatarUrl?: string }) => Promise<{ error: AuthError | null }>;
+  updateUserMetadata: (metadata: { name?: string; avatarUrl?: string }) => Promise<{ user: User | null, error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 
 // Helper function to process a Supabase user into our app's User object
 const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
@@ -60,12 +59,27 @@ const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<U
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  // isLoading is now only for the very first authentication check when the app loads.
   const [isLoading, setIsLoading] = useState(true); 
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data: { user: supabaseUser }, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      const appUser = await processSupabaseUser(supabaseUser);
+      setUser(appUser);
+      return { user: appUser, error: null };
+    } catch (error) {
+      // If refresh fails, it might mean the session is truly invalid.
+      // The onAuthStateChange listener will likely catch a SIGNED_OUT event.
+      console.error("Error refreshing user session:", error);
+      setUser(null);
+      return { user: null, error: error as AuthError };
+    }
+  }, []);
+
   useEffect(() => {
-    // 1. Run an initial check to see if a session exists.
     const checkInitialSession = async () => {
+      setIsLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const appUser = await processSupabaseUser(session?.user || null);
@@ -74,19 +88,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Error checking initial session:", e);
         setUser(null);
       } finally {
-        // Crucially, set loading to false only after this first check completes.
         setIsLoading(false);
       }
     };
 
     checkInitialSession();
 
-    // 2. Set up a listener for subsequent auth changes (login, logout, token refresh).
-    // This listener will update the user state silently without triggering the global loader.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const appUser = await processSupabaseUser(session?.user || null);
         setUser(appUser);
+        if (_event === 'INITIAL_SESSION') {
+          setIsLoading(false);
+        }
       }
     );
 
@@ -97,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<{ error: AuthError | null }> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    // The onAuthStateChange listener will handle updating the user state.
     return { error };
   };
 
@@ -112,24 +125,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       },
     });
-    // The onAuthStateChange listener will handle the state if auto-confirmation is on.
     return { error };
   };
 
   const logout = async (): Promise<void> => {
     await supabase.auth.signOut();
-    // The onAuthStateChange listener will set the user to null.
   };
 
-  const updateUserMetadata = async (metadata: { name?: string; avatarUrl?: string }): Promise<{ error: AuthError | null }> => {
-    const { error } = await supabase.auth.updateUser({
+  const updateUserMetadata = async (metadata: { name?: string; avatarUrl?: string }): Promise<{ user: User | null; error: AuthError | null }> => {
+    const { error: updateError } = await supabase.auth.updateUser({
       data: {
         name: metadata.name,
         avatar_url: metadata.avatarUrl,
       },
     });
-    // The onAuthStateChange listener (event: USER_UPDATED) will handle refreshing the user state.
-    return { error };
+
+    if (updateError) {
+      return { user: null, error: updateError };
+    }
+
+    // After a successful update, explicitly refresh the session to get the latest user data
+    // and update the local state, rather than relying solely on the listener.
+    const { user: updatedUser, error: refreshError } = await refreshUser();
+    return { user: updatedUser, error: refreshError };
   };
 
   return (
