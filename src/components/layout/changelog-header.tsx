@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -18,8 +17,8 @@ export default function ChangelogHeader() {
       >
         <Link href="/">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          <span className="hidden md:inline">Back to Welcome Page</span>
-          <span className="md:hidden">Back</span>
+          <span className="hidden sm:inline">Back to Welcome Page</span>
+          <span className="sm:hidden">Back</span>
         </Link>
       </Button>
 
@@ -31,8 +30,8 @@ export default function ChangelogHeader() {
             className="font-body shadow-sm hover:shadow-md transition-shadow"
           >
             <Link href="/login">
-              <LogIn className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Login</span>
+              <LogIn className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Login</span>
             </Link>
           </Button>
           <Button 
@@ -42,8 +41,8 @@ export default function ChangelogHeader() {
             className="font-body shadow-sm hover:shadow-md transition-shadow"
           >
             <Link href="/register">
-              <UserPlus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Register</span>
+              <UserPlus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Register</span>
             </Link>
           </Button>
         </div>
