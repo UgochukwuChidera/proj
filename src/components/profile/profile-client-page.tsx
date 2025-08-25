@@ -56,7 +56,9 @@ export function ProfileClientPage() {
       toast({ title: 'Profile Update Failed', description: `Could not update profile: ${error.message}`, variant: 'destructive' });
     } else if (updatedUser) {
       toast({ title: 'Profile Updated', description: 'Your name and/or avatar have been saved.' });
-      // The auth context will update the user state, and useEffect will sync the form fields.
+      // Explicitly update the local form state with the new data from the context.
+      setName(updatedUser.name || '');
+      setAvatarUrlInput(updatedUser.avatarUrl || '');
     }
     
     setIsSubmitting(false);
