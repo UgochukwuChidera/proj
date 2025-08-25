@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -53,7 +54,7 @@ export function ResourceDisplayPage() {
 
       const matchesYear = !selectedYear || r.year === parseInt(selectedYear, 10);
       const matchesType = !selectedType || r.type === selectedType;
-      const matchesCourse = !selectedCourse || r.course === selectedCourse;
+      const matchesCourse = !selectedCourse || r.course?.toLowerCase() === selectedCourse.toLowerCase();
 
       return matchesTerm && matchesYear && matchesType && matchesCourse;
     });
