@@ -54,24 +54,30 @@ export function ProfileClientPage() {
     }
 
     setIsSubmitting(true);
+    
+    toast({
+      title: "Profile Updated",
+      description: "Your profile has been saved. The page will now reload.",
+    });
 
-    const { user: updatedUser, error } = await updateUserMetadata(metadataUpdates);
+    // We trigger the update in the background.
+    updateUserMetadata(metadataUpdates).then(({ error }) => {
+      if (error) {
+        // If there's an error, we can show an additional toast.
+        // The page will still reload.
+        toast({
+          title: "Profile Update Failed",
+          description: `Could not update profile: ${error.message}`,
+          variant: "destructive",
+        });
+        console.error("Profile update failed:", error.message);
+      }
+    });
 
-    if (error) {
-      toast({
-        title: "Profile Update Failed",
-        description: `Could not update profile: ${error.message}`,
-        variant: "destructive",
-      });
-      setIsSubmitting(false); // only stop submitting on error, success will reload page
-    } else if (updatedUser) {
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been saved. The page will now reload.",
-      });
-      // Force a reload to ensure all components get the updated user state.
+    // Reload the page after a short delay to allow the toast to be seen.
+    setTimeout(() => {
       window.location.reload();
-    }
+    }, 2000); // 2-second delay
   };
 
   const handleLogout = async () => {
