@@ -57,7 +57,7 @@ export function ProfileClientPage() {
     
     toast({
       title: "Profile Updated",
-      description: "Your profile has been saved. The page will now reload.",
+      description: "Your profile has been saved.",
     });
 
     // We trigger the update in the background.
