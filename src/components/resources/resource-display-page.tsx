@@ -44,12 +44,14 @@ export function ResourceDisplayPage() {
   // apply filters client-side
   const filteredResources = useMemo(() => {
     return resources.filter((r) => {
+      const lowercasedSearchTerm = searchTerm.toLowerCase();
       const matchesTerm =
         !searchTerm ||
-        r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.name?.toLowerCase().includes(lowercasedSearchTerm) ||
+        r.description?.toLowerCase().includes(lowercasedSearchTerm) ||
+        r.course?.toLowerCase().includes(lowercasedSearchTerm) ||
         r.keywords?.some((kw) =>
-          kw.toLowerCase().includes(searchTerm.toLowerCase())
+          kw.toLowerCase().includes(lowercasedSearchTerm)
         );
 
       const matchesYear = !selectedYear || r.year === parseInt(selectedYear, 10);
