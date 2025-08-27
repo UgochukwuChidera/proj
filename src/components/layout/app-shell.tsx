@@ -16,13 +16,16 @@ import { useAuth } from '@/contexts/auth-context';
 import { LogOut, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation'; 
+import { supabase } from '@/lib/supabaseClient';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter(); 
 
   const handleLogout = async () => {
-    await logout();
+    // Calling signOut directly from the supabase client
+    // to avoid issues with potentially stale context functions.
+    await supabase.auth.signOut();
     router.push('/login'); 
   };
 
