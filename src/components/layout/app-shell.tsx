@@ -30,12 +30,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
         <SidebarHeader className="p-4">
-          {(isLoading && !user && !isAuthenticated) && ( 
+          {isLoading && !user && !isAuthenticated ? ( 
             <div className="flex items-center justify-center group-data-[collapsible=icon]:hidden">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
-          )}
-          {isAuthenticated && user && ( 
+          ) : isAuthenticated && user ? ( 
              <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
                 <Image 
                   src={user.avatarUrl || `https://placehold.co/40x40.png?text=${(user.name || user.email || 'U').charAt(0)?.toUpperCase()}`} 
@@ -50,15 +49,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">{user.email}</span>
                </div>
              </div>
-           )}
+           ) : null}
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarNavItems />
         </SidebarContent>
         <SidebarFooter className="p-2">
           {isAuthenticated && (
-            <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2" onClick={handleLogout} disabled={isLoading && !user && !isAuthenticated}>
-              {(isLoading && !user && !isAuthenticated) ? <Loader2 className="h-4 w-4 animate-spin group-data-[collapsible=icon]:mr-0" /> : <LogOut className="mr-2 h-4 w-4 group-data-[collapsible=icon]:mr-0" />}
+            <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4 group-data-[collapsible=icon]:mr-0" />
               <span className="group-data-[collapsible=icon]:hidden">Logout</span>
             </Button>
           )}
