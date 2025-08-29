@@ -53,70 +53,72 @@ export function ProfileClientPage() {
     e.preventDefault();
     if (!user) return;
 
-    // Check if there are any changes to be made
     const nameChanged = name !== (user.name || "");
     const avatarChanged = !!avatarFile;
+
     if (!nameChanged && !avatarChanged) {
       toast({ title: "No Changes Detected", description: "Your profile information remains the same." });
       return;
     }
 
     setIsSubmitting(true);
-    toast({ title: "Updating Profile...", description: "Please wait while we save your changes." });
+    toast({ title: "Profile Update Initiated", description: "Your changes are being saved. The page will reload shortly." });
 
-    let newAvatarUrl = user.avatarUrl;
+    // We create a separate async function to run the update in the background
+    // This allows the main function to continue and reload the page immediately
+    const runUpdateInBackground = async () => {
+      let newAvatarUrl = user.avatarUrl;
+      try {
+        if (avatarFile) {
+          const filePath = `public/${user.id}`;
+          const { error: uploadError } = await supabase.storage
+            .from(AVATAR_STORAGE_BUCKET)
+            .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
 
-    try {
-      // 1. Upload new avatar if one was selected
-      if (avatarFile) {
-        const filePath = `public/${user.id}`; // Use user ID as the file path
-        
-        const { error: uploadError } = await supabase.storage
-          .from(AVATAR_STORAGE_BUCKET)
-          .upload(filePath, avatarFile, {
-            upsert: true, // Overwrite existing file for the user
-            cacheControl: '3600',
-          });
+          if (uploadError) throw uploadError;
 
-        if (uploadError) throw uploadError;
+          const { data: urlData } = supabase.storage
+            .from(AVATAR_STORAGE_BUCKET)
+            .getPublicUrl(filePath);
+          
+          // Add timestamp to bust cache
+          newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
+        }
 
-        // 2. Get the public URL of the uploaded file
-        const { data: urlData } = supabase.storage
-          .from(AVATAR_STORAGE_BUCKET)
-          .getPublicUrl(filePath);
+        const metadataUpdates: { name?: string; avatarUrl?: string } = {};
+        if (nameChanged) metadataUpdates.name = name;
+        // Only update avatarUrl if it has actually changed
+        if (avatarFile) metadataUpdates.avatarUrl = newAvatarUrl;
 
-        // Add a timestamp to bust cache
-        newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
+        if (Object.keys(metadataUpdates).length > 0) {
+          const { error: updateError } = await updateUserMetadata(metadataUpdates);
+          if (updateError) {
+             // Log the error to console for debugging, but don't block the UI
+            console.error("Profile update failed in background:", updateError);
+            // Optionally, show a non-blocking error toast
+            toast({
+              title: "Background Update Failed",
+              description: "Could not save your profile changes. Please try again.",
+              variant: "destructive"
+            });
+          }
+        }
+      } catch (error: any) {
+        console.error("Profile update failed in background:", error);
+         toast({
+          title: "Background Update Failed",
+          description: error.message || "Could not save your profile. Please try again.",
+          variant: "destructive"
+        });
       }
+    };
+    
+    runUpdateInBackground();
 
-      // 3. Update user metadata
-      const metadataUpdates: { name?: string; avatarUrl?: string } = {};
-      if (nameChanged) metadataUpdates.name = name;
-      if (avatarChanged) metadataUpdates.avatarUrl = newAvatarUrl;
-
-      if (Object.keys(metadataUpdates).length > 0) {
-        await updateUserMetadata(metadataUpdates);
-      }
-
-      toast({
-        title: "Profile Updated Successfully",
-        description: "Your changes have been saved.",
-      });
-
-      // 4. Reload the page to reflect changes everywhere
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-    } catch (error: any) {
-      console.error("Profile update failed:", error);
-      toast({
-        title: "Update Failed",
-        description: error.message || "Could not save your profile. Please try again.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false); // only re-enable the button on failure
-    }
+    // Reload the page after a short delay, regardless of the outcome of the background task
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
   };
 
   const handleLogout = async () => {
