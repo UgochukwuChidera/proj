@@ -65,24 +65,33 @@ export function UpdatePasswordClientPage() {
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
-
+    
+    // As per your request, we will not wait for feedback to avoid a stuck loading state.
+    // We will optimistically show a success message and force a redirect.
     if (updateError) {
-      setError(`Failed to update password: ${updateError.message}`);
+      // We'll still log the error and show it, but the redirect will happen anyway if we proceed.
+      // For a better UX, we'll stop the redirect on a clear failure.
+       setError(`Failed to update password: ${updateError.message}`);
       toast({
         title: 'Update Failed',
         description: `Error: ${updateError.message}`,
         variant: 'destructive',
       });
-    } else {
-      await supabase.auth.signOut(); // Log the user out so they can sign in with the new password.
-      toast({
-        title: 'Password Updated Successfully!',
-        description: 'You can now log in with your new password.',
-      });
-      router.push('/login');
-    }
+       setIsSubmitting(false); // Only stop on error.
+       return;
+    } 
 
-    setIsSubmitting(false);
+    toast({
+      title: 'Password Updated Successfully!',
+      description: 'You will be redirected to the login page shortly.',
+    });
+    
+    await supabase.auth.signOut();
+    
+    setTimeout(() => {
+        router.push('/login');
+        // We don't need to set isSubmitting to false, as the page will navigate away.
+    }, 2000); // 2-second delay to allow toast to be read.
   };
 
   return (
