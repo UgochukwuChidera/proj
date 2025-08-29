@@ -11,73 +11,112 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabaseClient";
+
+const AVATAR_STORAGE_BUCKET = 'avatars';
 
 export function ProfileClientPage() {
   const { user, isAuthenticated, isLoading: authLoading, logout, updateUserMetadata } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [avatarUrlInput, setAvatarUrlInput] = useState("");
-  const [avatarVersion, setAvatarVersion] = useState(0); // for cache busting
+  
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
-  // Populate form from current user
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
       setName(user.name || "");
       setEmail(user.email || "");
-      setAvatarUrlInput(user.avatarUrl || "");
     }
   }, [isAuthenticated, user, authLoading]);
 
   const avatarSrc = useMemo(() => {
-    const fallback = `https://placehold.co/128x128.png?text=${(user?.name || user?.email || "U").charAt(0).toUpperCase()}`;
-    if (!avatarUrlInput) return fallback;
-    const sep = avatarUrlInput.includes("?") ? "&" : "?";
-    return `${avatarUrlInput}${sep}v=${avatarVersion}`;
-  }, [avatarUrlInput, avatarVersion, user?.name, user?.email]);
+    if (avatarPreview) return avatarPreview;
+    if (user?.avatarUrl) return user.avatarUrl;
+    return `https://placehold.co/128x128.png?text=${(user?.name || user?.email || "U").charAt(0).toUpperCase()}`;
+  }, [avatarPreview, user?.avatarUrl, user?.name, user?.email]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    const metadataUpdates: { name?: string; avatarUrl?: string } = {};
-    if (name !== (user.name || "")) metadataUpdates.name = name;
-    if (avatarUrlInput !== (user.avatarUrl || "")) metadataUpdates.avatarUrl = avatarUrlInput;
-
-    if (Object.keys(metadataUpdates).length === 0) {
+    // Check if there are any changes to be made
+    const nameChanged = name !== (user.name || "");
+    const avatarChanged = !!avatarFile;
+    if (!nameChanged && !avatarChanged) {
       toast({ title: "No Changes Detected", description: "Your profile information remains the same." });
       return;
     }
 
     setIsSubmitting(true);
-    
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been saved.",
-    });
+    toast({ title: "Updating Profile...", description: "Please wait while we save your changes." });
 
-    // We trigger the update in the background.
-    updateUserMetadata(metadataUpdates).then(({ error }) => {
-      if (error) {
-        // If there's an error, we can show an additional toast.
-        // The page will still reload.
-        toast({
-          title: "Profile Update Failed",
-          description: `Could not update profile: ${error.message}`,
-          variant: "destructive",
-        });
-        console.error("Profile update failed:", error.message);
+    let newAvatarUrl = user.avatarUrl;
+
+    try {
+      // 1. Upload new avatar if one was selected
+      if (avatarFile) {
+        const filePath = `public/${user.id}`; // Use user ID as the file path
+        
+        const { error: uploadError } = await supabase.storage
+          .from(AVATAR_STORAGE_BUCKET)
+          .upload(filePath, avatarFile, {
+            upsert: true, // Overwrite existing file for the user
+            cacheControl: '3600',
+          });
+
+        if (uploadError) throw uploadError;
+
+        // 2. Get the public URL of the uploaded file
+        const { data: urlData } = supabase.storage
+          .from(AVATAR_STORAGE_BUCKET)
+          .getPublicUrl(filePath);
+
+        // Add a timestamp to bust cache
+        newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
       }
-    });
 
-    // Reload the page after a short delay to allow the toast to be seen.
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000); // 2-second delay
+      // 3. Update user metadata
+      const metadataUpdates: { name?: string; avatarUrl?: string } = {};
+      if (nameChanged) metadataUpdates.name = name;
+      if (avatarChanged) metadataUpdates.avatarUrl = newAvatarUrl;
+
+      if (Object.keys(metadataUpdates).length > 0) {
+        await updateUserMetadata(metadataUpdates);
+      }
+
+      toast({
+        title: "Profile Updated Successfully",
+        description: "Your changes have been saved.",
+      });
+
+      // 4. Reload the page to reflect changes everywhere
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error: any) {
+      console.error("Profile update failed:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Could not save your profile. Please try again.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false); // only re-enable the button on failure
+    }
   };
 
   const handleLogout = async () => {
@@ -130,25 +169,25 @@ export function ProfileClientPage() {
             <div className="flex flex-col items-center space-y-4">
               <Image
                 src={avatarSrc}
-                alt="User Avatar"
+                alt="User Avatar Preview"
                 width={128}
                 height={128}
                 className="object-cover bg-muted"
                 data-ai-hint="user avatar" 
-                unoptimized // Useful for cache-busting with the 'v' parameter
+                unoptimized 
               />
               <div className="w-full max-w-xs">
-                <Label htmlFor="avatarUrl">Avatar Image URL</Label>
+                <Label htmlFor="avatarFile">Change Avatar</Label>
                 <Input
-                  id="avatarUrl"
-                  type="url"
-                  value={avatarUrlInput}
-                  onChange={(e) => setAvatarUrlInput(e.target.value)}
-                  placeholder="https://example.com/avatar.png"
+                  id="avatarFile"
+                  type="file"
+                  accept="image/png, image/jpeg, image/gif"
+                  onChange={handleFileChange}
                   disabled={isSubmitting || isLoggingOut}
+                  className="pt-2 text-sm"
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-center">
-                  Enter a publicly accessible image URL.
+                  Select a new image file to upload.
                 </p>
               </div>
             </div>
