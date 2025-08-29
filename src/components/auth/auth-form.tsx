@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient'; // Import supabase client
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -20,9 +21,40 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState(''); // Only for register mode
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const router = useRouter();
   const { login, register } = useAuth();
   const { toast } = useToast();
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your email address to reset your password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsResettingPassword(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`, // Redirect to home page after reset
+    });
+
+    if (error) {
+      toast({
+        title: 'Password Reset Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Password Reset Email Sent',
+        description: 'If an account exists for this email, a password reset link has been sent. Please check your inbox.',
+        duration: 10000,
+      });
+    }
+    setIsResettingPassword(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,11 +115,24 @@ export function AuthForm({ mode }: AuthFormProps) {
           onChange={(e) => setEmail(e.target.value)}
           required
           placeholder="user@example.com"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isResettingPassword}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            {mode === 'login' && (
+                <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-xs font-normal text-muted-foreground hover:text-primary hover:no-underline"
+                    onClick={handlePasswordReset}
+                    disabled={isSubmitting || isResettingPassword}
+                >
+                    {isResettingPassword ? <Loader2 className="animate-spin" size={14}/> : 'Forgot password?'}
+                </Button>
+            )}
+        </div>
         <Input
           id="password"
           type="password"
@@ -95,10 +140,10 @@ export function AuthForm({ mode }: AuthFormProps) {
           onChange={(e) => setPassword(e.target.value)}
           required
           placeholder="••••••••"
-          disabled={isSubmitting}
+          disabled={isSubmitting || (mode === 'login' && isResettingPassword)}
         />
       </div>
-      <Button type="submit" className="w-full font-body" disabled={isSubmitting}>
+      <Button type="submit" className="w-full font-body" disabled={isSubmitting || isResettingPassword}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : mode === 'login' ? 'Login' : 'Register'}
       </Button>
       <div className="text-center text-sm">
