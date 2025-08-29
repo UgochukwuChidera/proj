@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AppShell } from '@/components/layout/app-shell';
 import { Loader2 } from 'lucide-react';
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/changelog'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/changelog', '/update-password'];
 
 // A simple full-screen loader component
 const FullScreenLoader = ({ message }: { message: string }) => (
@@ -41,7 +41,7 @@ export default function ConditionalAppShell({ children }: { children: React.Reac
 
   if (!isAuthenticated) {
     if (isPublicPath) {
-      // Unauthenticated user on a public path (e.g., /login, /register, /landing, /changelog).
+      // Unauthenticated user on a public path (e.g., /login, /register, /landing, /changelog, /update-password).
       // Render children directly without AppShell.
       return <>{children}</>;
     } else {
