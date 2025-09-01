@@ -14,9 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 
 const AVATAR_STORAGE_BUCKET = 'avatars';
+const EDGE_FUNCTION_PROFILE_UPDATE = 'profileUpdate';
 
 export function ProfileClientPage() {
-  const { user, isAuthenticated, isLoading: authLoading, logout, updateUserMetadata } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   
@@ -62,63 +63,73 @@ export function ProfileClientPage() {
     }
 
     setIsSubmitting(true);
-    toast({ title: "Profile Update Initiated", description: "Your changes are being saved. The page will reload shortly." });
-
-    // We create a separate async function to run the update in the background
-    // This allows the main function to continue and reload the page immediately
-    const runUpdateInBackground = async () => {
-      let newAvatarUrl = user.avatarUrl;
-      try {
-        if (avatarFile) {
-          const filePath = `public/${user.id}`;
-          const { error: uploadError } = await supabase.storage
-            .from(AVATAR_STORAGE_BUCKET)
-            .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
-
-          if (uploadError) throw uploadError;
-
-          const { data: urlData } = supabase.storage
-            .from(AVATAR_STORAGE_BUCKET)
-            .getPublicUrl(filePath);
-          
-          // Add timestamp to bust cache
-          newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
-        }
-
-        const metadataUpdates: { name?: string; avatarUrl?: string } = {};
-        if (nameChanged) metadataUpdates.name = name;
-        // Only update avatarUrl if it has actually changed
-        if (avatarFile) metadataUpdates.avatarUrl = newAvatarUrl;
-
-        if (Object.keys(metadataUpdates).length > 0) {
-          const { error: updateError } = await updateUserMetadata(metadataUpdates);
-          if (updateError) {
-             // Log the error to console for debugging, but don't block the UI
-            console.error("Profile update failed in background:", updateError);
-            // Optionally, show a non-blocking error toast
-            toast({
-              title: "Background Update Failed",
-              description: "Could not save your profile changes. Please try again.",
-              variant: "destructive"
-            });
-          }
-        }
-      } catch (error: any) {
-        console.error("Profile update failed in background:", error);
-         toast({
-          title: "Background Update Failed",
-          description: error.message || "Could not save your profile. Please try again.",
-          variant: "destructive"
-        });
-      }
-    };
     
-    runUpdateInBackground();
+    try {
+      let newAvatarUrl = user.avatarUrl;
 
-    // Reload the page after a short delay, regardless of the outcome of the background task
-    setTimeout(() => {
+      // 1. Handle avatar upload if a new file is present
+      if (avatarFile) {
+        const filePath = `public/${user.id}`;
+        const { error: uploadError } = await supabase.storage
+          .from(AVATAR_STORAGE_BUCKET)
+          .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
+
+        if (uploadError) throw new Error(`Avatar upload failed: ${uploadError.message}`);
+
+        const { data: urlData } = supabase.storage
+          .from(AVATAR_STORAGE_BUCKET)
+          .getPublicUrl(filePath);
+        
+        // Add timestamp to bust cache
+        newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
+      }
+      
+      // 2. Prepare data for the edge function
+      const updatePayload = {
+        name: nameChanged ? name : undefined,
+        avatarUrl: avatarChanged ? newAvatarUrl : undefined,
+      };
+
+      // 3. Invoke the edge function
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        throw new Error('Could not retrieve current session. Please re-login.');
+      }
+
+      const { error: functionError } = await supabase.functions.invoke(
+        EDGE_FUNCTION_PROFILE_UPDATE,
+        {
+          body: updatePayload,
+          headers: {
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+          },
+        }
+      );
+      
+      if (functionError) {
+        throw new Error(`Profile update failed: ${functionError.message}`);
+      }
+
+      // 4. Success! Show toast and reload.
+      toast({
+        title: "Profile Updated Successfully!",
+        description: "Your changes have been saved.",
+      });
+
+      // Reload the page to reflect changes everywhere.
       window.location.reload();
-    }, 2000);
+
+    } catch (error: any) {
+      console.error("Profile update failed:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Could not save your profile. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      // This will only be reached on error now, as success reloads the page.
+      setIsSubmitting(false);
+    }
   };
 
   const handleLogout = async () => {

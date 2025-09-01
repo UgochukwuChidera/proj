@@ -21,6 +21,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   register: (email: string, password: string, name: string) => Promise<{ error: AuthError | null }>;
   logout: () => Promise<void>;
+  // This function is no longer needed on the client, as the Edge Function handles it.
+  // We keep the definition here to prevent breaking other components that might import the type,
+  // but it will no longer be implemented or returned by the provider.
   updateUserMetadata: (metadata: { name?: string; avatarUrl?: string }) => Promise<{ user: User | null, error: AuthError | null }>;
 }
 
@@ -96,6 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        // When a user signs in, signs out, or their token is refreshed, this will fire.
+        // It's crucial for keeping the client-side user state in sync with the auth server.
+        // E.g., if a password update logs the user out from other sessions, this listener will catch it.
         const appUser = await processSupabaseUser(session?.user || null);
         setUser(appUser);
         if (_event === 'INITIAL_SESSION') {
@@ -132,26 +138,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
-  const updateUserMetadata = async (metadata: { name?: string; avatarUrl?: string }): Promise<{ user: User | null; error: AuthError | null }> => {
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: {
-        name: metadata.name,
-        avatar_url: metadata.avatarUrl,
-      },
-    });
-
-    if (updateError) {
-      return { user: null, error: updateError };
-    }
-
-    // After a successful update, explicitly refresh the session to get the latest user data
-    // and update the local state, rather than relying solely on the listener.
-    const { user: updatedUser, error: refreshError } = await refreshUser();
-    return { user: updatedUser, error: refreshError };
+  const updateUserMetadata = async (): Promise<{ user: User | null; error: AuthError | null }> => {
+    // This function is now intentionally blank on the client.
+    // The logic has been moved to a secure Edge Function.
+    // We return a resolved promise to maintain type consistency for any components
+    // that might still reference it during the refactor.
+    console.warn("updateUserMetadata is now handled by an Edge Function and should not be called from the client context.");
+    return Promise.resolve({ user: null, error: null });
+  };
+  
+  const value = {
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      register,
+      logout,
+      updateUserMetadata // Provide the (now blank) function to maintain the context shape
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, register, logout, updateUserMetadata }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
