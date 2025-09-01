@@ -53,14 +53,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ) : isAuthenticated && user ? ( 
              <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-                <Image 
-                  src={avatarSrc} 
-                  alt={user.name || 'User Avatar'}
-                  width={40} 
-                  height={40} 
-                  className="object-cover shrink-0 group-data-[collapsible=icon]:size-8 bg-muted rounded-full"
-                  data-ai-hint="user avatar" 
-                />
+                <div className="relative w-10 h-10 shrink-0 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
+                  <Image 
+                    src={avatarSrc} 
+                    alt={user.name || 'User Avatar'}
+                    fill
+                    className="object-cover bg-muted rounded-full"
+                    data-ai-hint="user avatar" 
+                  />
+                </div>
                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                  <span className="font-semibold text-sm truncate max-w-[120px]">{user.name || user.email?.split('@')[0]}</span>
                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">{user.email}</span>

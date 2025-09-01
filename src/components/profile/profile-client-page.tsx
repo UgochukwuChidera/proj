@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { UploadCloud, UserCircle, Loader2, LogOutIcon, FileUp, Camera } from "lucide-react";
+import { UploadCloud, UserCircle, Loader2, LogOutIcon, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,16 +197,17 @@ export function ProfileClientPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div className="flex flex-col items-center space-y-4">
-              <div className="relative group">
-                <label htmlFor="avatarFile" className="cursor-pointer">
-                  <Image
-                    src={avatarSrc}
-                    alt="User Avatar Preview"
-                    width={128}
-                    height={128}
-                    className="object-cover bg-muted rounded-full border-4 border-transparent group-hover:border-primary/50 transition-colors"
-                    data-ai-hint="user avatar"
-                  />
+              <div className="relative group w-32 h-32">
+                <label htmlFor="avatarFile" className="cursor-pointer rounded-full">
+                  <div className="relative w-32 h-32 rounded-full border-4 border-transparent group-hover:border-primary/50 transition-colors">
+                    <Image
+                      src={avatarSrc}
+                      alt="User Avatar Preview"
+                      fill
+                      className="object-cover bg-muted rounded-full"
+                      data-ai-hint="user avatar"
+                    />
+                  </div>
                   <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="h-8 w-8 text-white" />
                   </div>
