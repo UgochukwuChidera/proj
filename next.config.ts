@@ -19,13 +19,12 @@ const nextConfig: NextConfig = {
       },
       // If you use Supabase Storage for avatars or resource images,
       // add your Supabase project's image hostname here.
-      // Example:
-      // {
-      //   protocol: 'https',
-      //   hostname: 'yourprojectid.supabase.co',
-      //   port: '',
-      //   pathname: '/storage/v1/object/public/**',
-      // },
+      {
+        protocol: 'https',
+        hostname: 'rfdxppoatbpkjmfrmmsm.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
 };
