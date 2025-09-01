@@ -5,10 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
 serve(async (req: Request) => {
-  console.log("[SERVER] profileUpdate function invoked.");
-
   if (req.method === 'OPTIONS') {
-    console.log("[SERVER] Handling OPTIONS preflight request.");
     return new Response('ok', { headers: corsHeaders });
   }
 
@@ -17,7 +14,6 @@ serve(async (req: Request) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error('[SERVER] Function error: Missing Supabase URL or Service Role Key.');
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -27,7 +23,6 @@ serve(async (req: Request) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error("[SERVER] Auth error: Missing Authorization header.");
       return new Response(JSON.stringify({ error: 'Missing Authorization header.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
@@ -39,16 +34,13 @@ serve(async (req: Request) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      console.error('[SERVER] Auth error:', userError?.message || 'User not found.');
       return new Response(JSON.stringify({ error: 'Not authenticated or invalid token.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       });
     }
-    console.log(`[SERVER] Authenticated user ID: ${user.id}`);
 
     const body = await req.json();
-    console.log("[SERVER] Received request body:", JSON.stringify(body, null, 2));
     const { name, avatarUrl } = body;
 
     if (!name && !avatarUrl) {
@@ -70,13 +62,11 @@ serve(async (req: Request) => {
       );
 
       if (updateError) {
-        console.error(`[SERVER] Error updating auth.users for user ${user.id}:`, updateError);
         return new Response(JSON.stringify({ error: `Failed to update user auth metadata: ${updateError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
         });
       }
-       console.log(`[SERVER] Successfully updated auth.users metadata for user ${user.id}.`);
     }
 
     // Part 2: Update the public 'profiles' table (the critical fix)
@@ -84,7 +74,7 @@ serve(async (req: Request) => {
       id: user.id, // Always specify the ID for the upsert
       updated_at: new Date().toISOString(),
     };
-    if (name) profileUpdatePayload.name = name; // Use name instead of full_name
+    if (name) profileUpdatePayload.name = name;
     if (avatarUrl) profileUpdatePayload.avatar_url = avatarUrl; 
 
     if (Object.keys(profileUpdatePayload).length > 2) { // More than just id and updated_at
@@ -93,13 +83,11 @@ serve(async (req: Request) => {
           .upsert(profileUpdatePayload);
 
         if (profileError) {
-           console.error(`[SERVER] Error upserting profile for user ${user.id}:`, profileError);
            return new Response(JSON.stringify({ error: `Failed to update profile table: ${profileError.message}` }), {
              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
              status: 500,
            });
         }
-        console.log(`[SERVER] Successfully upserted 'profiles' table for user ${user.id}.`);
     }
 
     return new Response(JSON.stringify({ message: 'Profile updated successfully.' }), {
@@ -108,7 +96,6 @@ serve(async (req: Request) => {
     });
 
   } catch (e) {
-    console.error('[SERVER] Unexpected error in profileUpdate Edge Function:', e);
     return new Response(JSON.stringify({ error: e.message || 'An internal server error occurred.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

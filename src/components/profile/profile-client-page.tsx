@@ -105,8 +105,6 @@ export function ProfileClientPage() {
         updatePayload.name = name;
       }
 
-      console.log("[CLIENT] Preparing to call Edge Function with payload:", JSON.stringify(updatePayload, null, 2));
-
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
         throw new Error('Could not retrieve a valid session. Please re-login.');
@@ -123,11 +121,8 @@ export function ProfileClientPage() {
       );
       
       if (functionError) {
-        console.error("[CLIENT] Edge Function call failed:", functionError);
         throw new Error(`Profile update failed on the server: ${functionError.message}`);
       }
-
-      console.log("[CLIENT] Edge Function call successful.");
 
       toast({
         title: "Profile Updated Successfully!",
@@ -137,7 +132,6 @@ export function ProfileClientPage() {
       window.location.reload();
 
     } catch (error: any) {
-      console.error("[CLIENT] Profile update process failed:", error);
       toast({
         title: "Update Failed",
         description: error.message || "Could not save your profile. Please try again.",
