@@ -76,6 +76,15 @@ serve(async (req: Request) => {
       metadataPayload.avatar_url = avatarUrl;
     }
     
+    // Only proceed if there's something to update
+    if (Object.keys(metadataPayload).length === 0) {
+      console.log("[SERVER] No metadata changes detected. Exiting.");
+       return new Response(JSON.stringify({ message: 'No changes to update.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
     const updatePayload = { data: metadataPayload };
     
     console.log("[SERVER] Constructed update payload for Supabase:", JSON.stringify(updatePayload, null, 2));
