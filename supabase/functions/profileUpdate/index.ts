@@ -67,21 +67,24 @@ serve(async (req: Request) => {
       });
     }
 
-    // 4. Construct the update payload
-    const updatePayload: { data: { [key: string]: any } } = { data: {} };
+    // 4. Construct the update payload for user_metadata
+    const metadataPayload: { [key: string]: any } = {};
     if (name) {
-      updatePayload.data.name = name;
+      metadataPayload.name = name;
     }
     if (avatarUrl) {
-      updatePayload.data.avatar_url = avatarUrl;
+      metadataPayload.avatar_url = avatarUrl;
     }
+    
+    const updatePayload = { data: metadataPayload };
+    
     console.log("[SERVER] Constructed update payload for Supabase:", JSON.stringify(updatePayload, null, 2));
 
     // 5. Update the user metadata using the Admin client
     console.log(`[SERVER] Attempting to update user metadata for user ID: ${user.id}`);
     const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       user.id,
-      updatePayload
+      updatePayload // This payload should be { data: { name: '...', avatar_url: '...' } }
     );
 
     if (updateError) {
