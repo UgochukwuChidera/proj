@@ -68,18 +68,12 @@ export function ProfileClientPage() {
 
       // 1. Handle avatar upload if a new file is present
       if (avatarFile) {
-        // Use user ID as the filename to ensure uniqueness and allow easy updates.
-        // The RLS policies are configured to allow this specific path.
         const filePath = `public/${user.id}`;
         const { error: uploadError } = await supabase.storage
           .from(AVATAR_STORAGE_BUCKET)
           .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
 
         if (uploadError) {
-            // Check if the error is an RLS violation
-            if (uploadError.message.includes('violates row-level security policy')) {
-                throw new Error("Avatar upload failed: Check your Supabase Storage RLS policies. The user does not have permission to upload to the 'avatars' bucket.");
-            }
             throw new Error(`Avatar upload failed: ${uploadError.message}`);
         }
         
@@ -87,7 +81,6 @@ export function ProfileClientPage() {
           .from(AVATAR_STORAGE_BUCKET)
           .getPublicUrl(filePath);
         
-        // Add timestamp to bust cache
         newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
       }
       
@@ -101,12 +94,19 @@ export function ProfileClientPage() {
         updatePayload.avatarUrl = newAvatarUrl;
       }
 
-      // 3. Invoke the edge function
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
-        throw new Error('Could not retrieve current session. Please re-login.');
+      if (Object.keys(updatePayload).length === 0) {
+        toast({ title: "No Changes to Save", description: "Could not prepare update data. Please try again.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
       }
 
+      // 3. Get a fresh session token RIGHT BEFORE calling the function
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        throw new Error('Could not retrieve a valid session. Please re-login.');
+      }
+
+      // 4. Invoke the edge function with the fresh token
       const { error: functionError } = await supabase.functions.invoke(
         EDGE_FUNCTION_PROFILE_UPDATE,
         {
@@ -118,10 +118,10 @@ export function ProfileClientPage() {
       );
       
       if (functionError) {
-        throw new Error(`Profile update failed: ${functionError.message}`);
+        throw new Error(`Profile update failed on the server: ${functionError.message}`);
       }
 
-      // 4. Success! Show toast and reload.
+      // 5. Success! Show toast and reload.
       toast({
         title: "Profile Updated Successfully!",
         description: "Your changes have been saved.",
@@ -131,15 +131,13 @@ export function ProfileClientPage() {
       window.location.reload();
 
     } catch (error: any) {
-      console.error("Profile update failed:", error);
+      console.error("Profile update process failed:", error);
       toast({
         title: "Update Failed",
         description: error.message || "Could not save your profile. Please try again.",
         variant: "destructive",
-        duration: 10000 // Give more time to read the detailed error
+        duration: 10000
       });
-    } finally {
-      // This will only be reached on error now, as success reloads the page.
       setIsSubmitting(false);
     }
   };
