@@ -26,6 +26,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to generate two-initial placeholder
+const getInitials = (name: string): string => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length > 1) {
+        return (parts[0][0] + (parts[1][0] || '')).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
 // Helper function to process a Supabase user into our app's User object
 const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
@@ -39,7 +49,7 @@ const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<U
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('is_admin, name, avatar_url') // Use name instead of full_name
+        .select('is_admin, name, avatar_url')
         .eq('id', supabaseUser.id)
         .single();
 
@@ -47,7 +57,7 @@ const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<U
         console.error('Error fetching profile:', profileError.message);
       } else if (profile) {
         profileData.isAdmin = profile.is_admin || false;
-        profileData.name = profile.name || ''; // Use name
+        profileData.name = profile.name || '';
         profileData.avatarUrl = profile.avatar_url || '';
       }
     } catch (e) {
@@ -55,14 +65,15 @@ const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<U
     }
     
     const fallbackName = supabaseUser.user_metadata?.name as string || supabaseUser.email?.split('@')[0] || 'User';
-    const fallbackAvatar = supabaseUser.user_metadata?.avatar_url as string || `https://placehold.co/100x100.png?text=${(profileData.name || fallbackName).charAt(0).toUpperCase()}`;
+    const finalName = profileData.name || fallbackName;
+    const fallbackAvatar = `https://placehold.co/128x128.png?text=${getInitials(finalName)}`;
 
     return {
       id: supabaseUser.id,
       email: supabaseUser.email,
       // Prioritize data from the 'profiles' table, then user_metadata, then fallbacks.
-      name: profileData.name || fallbackName,
-      avatarUrl: profileData.avatarUrl || fallbackAvatar,
+      name: finalName,
+      avatarUrl: profileData.avatarUrl || supabaseUser.user_metadata?.avatar_url || fallbackAvatar,
       isAdmin: profileData.isAdmin,
     };
 };
@@ -110,13 +121,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (email: string, password: string, name: string): Promise<{ error: AuthError | null }> => {
+    const initials = getInitials(name);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name: name,
-          avatar_url: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
+          avatar_url: `https://placehold.co/128x128.png?text=${initials}`,
         },
       },
     });

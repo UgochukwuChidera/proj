@@ -18,6 +18,15 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation'; 
 import { supabase } from '@/lib/supabaseClient';
 
+const getInitials = (name: string): string => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length > 1) {
+        return (parts[0][0] + (parts[1][0] || '')).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter(); 
@@ -28,6 +37,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     router.push('/login'); 
   };
+
+  const avatarSrc = user?.avatarUrl && !user.avatarUrl.includes('placehold.co')
+    ? user.avatarUrl
+    : `https://placehold.co/128x128.png?text=${getInitials(user?.name || user?.email || "U")}`;
+
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -40,11 +54,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ) : isAuthenticated && user ? ( 
              <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
                 <Image 
-                  src={user.avatarUrl || `https://placehold.co/40x40.png?text=${(user.name || user.email || 'U').charAt(0)?.toUpperCase()}`} 
+                  src={avatarSrc} 
                   alt={user.name || 'User Avatar'}
                   width={40} 
                   height={40} 
-                  className="object-cover shrink-0 group-data-[collapsible=icon]:size-8 bg-muted"
+                  className="object-cover shrink-0 group-data-[collapsible=icon]:size-8 bg-muted rounded-full"
                   data-ai-hint="user avatar" 
                 />
                <div className="flex flex-col group-data-[collapsible=icon]:hidden">

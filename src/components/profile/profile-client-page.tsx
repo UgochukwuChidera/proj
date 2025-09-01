@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { UploadCloud, UserCircle, Loader2, LogOutIcon, FileUp } from "lucide-react";
+import { UploadCloud, UserCircle, Loader2, LogOutIcon, FileUp, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,15 @@ import { supabase } from "@/lib/supabaseClient";
 
 const AVATAR_STORAGE_BUCKET = 'avatars';
 const EDGE_FUNCTION_PROFILE_UPDATE = 'profileUpdate';
+
+const getInitials = (name: string): string => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length > 1) {
+        return (parts[0][0] + (parts[1][0] || '')).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
 
 export function ProfileClientPage() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -38,8 +47,8 @@ export function ProfileClientPage() {
 
   const avatarSrc = useMemo(() => {
     if (avatarPreview) return avatarPreview;
-    if (user?.avatarUrl) return user.avatarUrl;
-    return `https://placehold.co/128x128.png?text=${(user?.name || user?.email || "U").charAt(0).toUpperCase()}`;
+    if (user?.avatarUrl && !user.avatarUrl.includes('placehold.co')) return user.avatarUrl;
+    return `https://placehold.co/128x128.png?text=${getInitials(user?.name || user?.email || "U")}`;
   }, [avatarPreview, user?.avatarUrl, user?.name, user?.email]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,40 +197,35 @@ export function ProfileClientPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div className="flex flex-col items-center space-y-4">
-              <Image
-                src={avatarSrc}
-                alt="User Avatar Preview"
-                width={128}
-                height={128}
-                className="object-cover bg-muted"
-                data-ai-hint="user avatar" 
-              />
-              <div className="w-full max-w-sm text-center">
-                <Label htmlFor="avatarFile">Change Avatar</Label>
-                <div className="mt-2 flex items-center justify-center rounded-md border border-dashed border-input p-4">
-                  <div className="text-center">
-                    <FileUp className="mx-auto h-10 w-10 text-muted-foreground" />
-                    <label
-                      htmlFor="avatarFile"
-                      className="relative cursor-pointer rounded-md font-medium text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
-                    >
-                      <span>Upload a file</span>
-                      <Input
-                        id="avatarFile"
-                        name="avatarFile"
-                        type="file"
-                        className="sr-only"
-                        accept="image/png, image/jpeg, image/gif"
-                        onChange={handleFileChange}
-                        disabled={isSubmitting || isLoggingOut}
-                      />
-                    </label>
-                    <p className="text-xs leading-5 text-muted-foreground mt-1">
-                      {avatarFile ? avatarFile.name : 'PNG, JPG, GIF up to 5MB'}
-                    </p>
+              <div className="relative group">
+                <label htmlFor="avatarFile" className="cursor-pointer">
+                  <Image
+                    src={avatarSrc}
+                    alt="User Avatar Preview"
+                    width={128}
+                    height={128}
+                    className="object-cover bg-muted rounded-full border-4 border-transparent group-hover:border-primary/50 transition-colors"
+                    data-ai-hint="user avatar"
+                  />
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="h-8 w-8 text-white" />
                   </div>
-                </div>
+                </label>
+                <Input
+                  id="avatarFile"
+                  name="avatarFile"
+                  type="file"
+                  className="sr-only"
+                  accept="image/png, image/jpeg, image/gif"
+                  onChange={handleFileChange}
+                  disabled={isSubmitting || isLoggingOut}
+                />
               </div>
+               {avatarFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: <span className="font-medium text-foreground">{avatarFile.name}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
