@@ -7,15 +7,12 @@ import { corsHeaders } from '../_shared/cors.ts';
 serve(async (req: Request) => {
   console.log("[SERVER] profileUpdate function invoked.");
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log("[SERVER] Handling OPTIONS preflight request.");
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // 1. Initialize Supabase Admin Client
-    console.log("[SERVER] Initializing Supabase admin client.");
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -27,10 +24,7 @@ serve(async (req: Request) => {
       });
     }
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-    console.log("[SERVER] Supabase admin client initialized.");
 
-    // 2. Get the authenticated user from the request headers
-    console.log("[SERVER] Authenticating user from request headers.");
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error("[SERVER] Auth error: Missing Authorization header.");
@@ -53,60 +47,62 @@ serve(async (req: Request) => {
     }
     console.log(`[SERVER] Authenticated user ID: ${user.id}`);
 
-    // 3. Get the request body
     const body = await req.json();
     console.log("[SERVER] Received request body:", JSON.stringify(body, null, 2));
     const { name, avatarUrl } = body;
 
-
     if (!name && !avatarUrl) {
-      console.error("[SERVER] Validation error: No name or avatarUrl in payload.");
       return new Response(JSON.stringify({ error: 'No update data provided. Please provide a name or avatarUrl.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
 
-    // 4. Construct the update payload for user_metadata
+    // Part 1: Update auth.users user_metadata (good practice)
     const metadataPayload: { [key: string]: any } = {};
-    if (name) {
-      metadataPayload.name = name;
-    }
-    if (avatarUrl) {
-      metadataPayload.avatar_url = avatarUrl;
-    }
+    if (name) metadataPayload.name = name;
+    if (avatarUrl) metadataPayload.avatar_url = avatarUrl;
     
-    // Only proceed if there's something to update
-    if (Object.keys(metadataPayload).length === 0) {
-      console.log("[SERVER] No metadata changes detected. Exiting.");
-       return new Response(JSON.stringify({ message: 'No changes to update.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
+    if (Object.keys(metadataPayload).length > 0) {
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        user.id,
+        { data: metadataPayload }
+      );
+
+      if (updateError) {
+        console.error(`[SERVER] Error updating auth.users for user ${user.id}:`, updateError);
+        return new Response(JSON.stringify({ error: `Failed to update user auth metadata: ${updateError.message}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
+       console.log(`[SERVER] Successfully updated auth.users metadata for user ${user.id}.`);
     }
 
-    const updatePayload = { data: metadataPayload };
-    
-    console.log("[SERVER] Constructed update payload for Supabase:", JSON.stringify(updatePayload, null, 2));
+    // Part 2: Update the public 'profiles' table (the critical fix)
+    const profileUpdatePayload: { [key: string]: any } = {
+      id: user.id, // Always specify the ID for the upsert
+      updated_at: new Date().toISOString(),
+    };
+    if (name) profileUpdatePayload.full_name = name; // Assuming column name is 'full_name'
+    if (avatarUrl) profileUpdatePayload.avatar_url = avatarUrl; // Assuming column name is 'avatar_url'
 
-    // 5. Update the user metadata using the Admin client
-    console.log(`[SERVER] Attempting to update user metadata for user ID: ${user.id}`);
-    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      user.id,
-      updatePayload // This payload should be { data: { name: '...', avatar_url: '...' } }
-    );
+    if (Object.keys(profileUpdatePayload).length > 2) { // More than just id and updated_at
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .upsert(profileUpdatePayload);
 
-    if (updateError) {
-      console.error(`[SERVER] Error updating user ${user.id}:`, updateError);
-      return new Response(JSON.stringify({ error: `Failed to update user profile: ${updateError.message}` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
+        if (profileError) {
+           console.error(`[SERVER] Error upserting profile for user ${user.id}:`, profileError);
+           return new Response(JSON.stringify({ error: `Failed to update profile table: ${profileError.message}` }), {
+             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+             status: 500,
+           });
+        }
+        console.log(`[SERVER] Successfully upserted 'profiles' table for user ${user.id}.`);
     }
 
-    // 6. Return a success response
-    console.log(`[SERVER] Successfully updated user ${user.id}.`);
-    return new Response(JSON.stringify({ message: 'Profile updated successfully.', user: updatedUser }), {
+    return new Response(JSON.stringify({ message: 'Profile updated successfully.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
