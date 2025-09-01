@@ -84,8 +84,8 @@ serve(async (req: Request) => {
       id: user.id, // Always specify the ID for the upsert
       updated_at: new Date().toISOString(),
     };
-    if (name) profileUpdatePayload.full_name = name; // Assuming column name is 'full_name'
-    if (avatarUrl) profileUpdatePayload.avatar_url = avatarUrl; // Assuming column name is 'avatar_url'
+    if (name) profileUpdatePayload.name = name; // Use name instead of full_name
+    if (avatarUrl) profileUpdatePayload.avatar_url = avatarUrl; 
 
     if (Object.keys(profileUpdatePayload).length > 2) { // More than just id and updated_at
         const { error: profileError } = await supabaseAdmin

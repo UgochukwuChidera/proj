@@ -39,7 +39,7 @@ const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<U
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('is_admin, full_name, avatar_url') // Fetch all relevant fields
+        .select('is_admin, name, avatar_url') // Use name instead of full_name
         .eq('id', supabaseUser.id)
         .single();
 
@@ -47,7 +47,7 @@ const processSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<U
         console.error('Error fetching profile:', profileError.message);
       } else if (profile) {
         profileData.isAdmin = profile.is_admin || false;
-        profileData.name = profile.full_name || '';
+        profileData.name = profile.name || ''; // Use name
         profileData.avatarUrl = profile.avatar_url || '';
       }
     } catch (e) {

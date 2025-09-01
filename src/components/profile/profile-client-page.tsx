@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -87,13 +88,13 @@ export function ProfileClientPage() {
         updatePayload.name = name;
       }
 
+      console.log("[CLIENT] Preparing to call Edge Function with payload:", JSON.stringify(updatePayload, null, 2));
+
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
         throw new Error('Could not retrieve a valid session. Please re-login.');
       }
       
-      console.log("[CLIENT] Preparing to call Edge Function with payload:", JSON.stringify(updatePayload, null, 2));
-
       const { error: functionError } = await supabase.functions.invoke(
         EDGE_FUNCTION_PROFILE_UPDATE,
         {
