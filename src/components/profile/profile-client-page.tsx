@@ -64,17 +64,25 @@ export function ProfileClientPage() {
     setIsSubmitting(true);
     
     try {
-      let newAvatarUrl = user.avatarUrl;
+      let newAvatarUrl: string | undefined = undefined;
 
       // 1. Handle avatar upload if a new file is present
       if (avatarFile) {
+        // Use user ID as the filename to ensure uniqueness and allow easy updates.
+        // The RLS policies are configured to allow this specific path.
         const filePath = `public/${user.id}`;
         const { error: uploadError } = await supabase.storage
           .from(AVATAR_STORAGE_BUCKET)
           .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
 
-        if (uploadError) throw new Error(`Avatar upload failed: ${uploadError.message}`);
-
+        if (uploadError) {
+            // Check if the error is an RLS violation
+            if (uploadError.message.includes('violates row-level security policy')) {
+                throw new Error("Avatar upload failed: Check your Supabase Storage RLS policies. The user does not have permission to upload to the 'avatars' bucket.");
+            }
+            throw new Error(`Avatar upload failed: ${uploadError.message}`);
+        }
+        
         const { data: urlData } = supabase.storage
           .from(AVATAR_STORAGE_BUCKET)
           .getPublicUrl(filePath);
@@ -84,10 +92,14 @@ export function ProfileClientPage() {
       }
       
       // 2. Prepare data for the edge function
-      const updatePayload = {
-        name: nameChanged ? name : undefined,
-        avatarUrl: avatarChanged ? newAvatarUrl : undefined,
-      };
+      const updatePayload: { name?: string; avatarUrl?: string } = {};
+
+      if (nameChanged) {
+        updatePayload.name = name;
+      }
+      if (avatarChanged && newAvatarUrl) {
+        updatePayload.avatarUrl = newAvatarUrl;
+      }
 
       // 3. Invoke the edge function
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -123,7 +135,8 @@ export function ProfileClientPage() {
       toast({
         title: "Update Failed",
         description: error.message || "Could not save your profile. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 10000 // Give more time to read the detailed error
       });
     } finally {
       // This will only be reached on error now, as success reloads the page.
