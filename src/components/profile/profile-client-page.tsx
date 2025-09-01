@@ -68,7 +68,7 @@ export function ProfileClientPage() {
       
       // 1. Handle avatar upload if a new file is present
       if (avatarFile) {
-        const filePath = `${user.id}/${avatarFile.name}`; // CORRECTED: Use user ID as a folder.
+        const filePath = `public/${user.id}/${avatarFile.name}`;
         const { error: uploadError } = await supabase.storage
           .from(AVATAR_STORAGE_BUCKET)
           .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
@@ -127,7 +127,8 @@ export function ProfileClientPage() {
         variant: "destructive",
         duration: 10000
       });
-      setIsSubmitting(false);
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
