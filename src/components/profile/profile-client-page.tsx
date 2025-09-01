@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { UploadCloud, UserCircle, Loader2, LogOutIcon } from "lucide-react";
+import { UploadCloud, UserCircle, Loader2, LogOutIcon, FileUp } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,14 @@ export function ProfileClientPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "File Too Large",
+          description: "Please select an image smaller than 5MB.",
+          variant: "destructive"
+        });
+        return;
+      }
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
@@ -188,19 +196,31 @@ export function ProfileClientPage() {
                 className="object-cover bg-muted"
                 data-ai-hint="user avatar" 
               />
-              <div className="w-full max-w-xs">
+              <div className="w-full max-w-sm text-center">
                 <Label htmlFor="avatarFile">Change Avatar</Label>
-                <Input
-                  id="avatarFile"
-                  type="file"
-                  accept="image/png, image/jpeg, image/gif"
-                  onChange={handleFileChange}
-                  disabled={isSubmitting || isLoggingOut}
-                  className="pt-2 text-sm"
-                />
-                <p className="text-xs text-muted-foreground mt-1 text-center">
-                  Select a new image file to upload.
-                </p>
+                <div className="mt-2 flex items-center justify-center rounded-md border border-dashed border-input p-4">
+                  <div className="text-center">
+                    <FileUp className="mx-auto h-10 w-10 text-muted-foreground" />
+                    <label
+                      htmlFor="avatarFile"
+                      className="relative cursor-pointer rounded-md font-medium text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
+                    >
+                      <span>Upload a file</span>
+                      <Input
+                        id="avatarFile"
+                        name="avatarFile"
+                        type="file"
+                        className="sr-only"
+                        accept="image/png, image/jpeg, image/gif"
+                        onChange={handleFileChange}
+                        disabled={isSubmitting || isLoggingOut}
+                      />
+                    </label>
+                    <p className="text-xs leading-5 text-muted-foreground mt-1">
+                      {avatarFile ? avatarFile.name : 'PNG, JPG, GIF up to 5MB'}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
