@@ -64,11 +64,11 @@ export function ProfileClientPage() {
     setIsSubmitting(true);
     
     try {
-      let newAvatarUrl: string | undefined = undefined;
-
+      const updatePayload: { name?: string; avatarUrl?: string } = {};
+      
       // 1. Handle avatar upload if a new file is present
       if (avatarFile) {
-        const filePath = `public/${user.id}`;
+        const filePath = `${user.id}`; // CORRECTED: Removed 'public/' prefix
         const { error: uploadError } = await supabase.storage
           .from(AVATAR_STORAGE_BUCKET)
           .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
@@ -81,21 +81,17 @@ export function ProfileClientPage() {
           .from(AVATAR_STORAGE_BUCKET)
           .getPublicUrl(filePath);
         
-        newAvatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
+        updatePayload.avatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
       }
       
-      // 2. Prepare data for the edge function
-      const updatePayload: { name?: string; avatarUrl?: string } = {};
-
+      // 2. Prepare name for the edge function if changed
       if (nameChanged) {
         updatePayload.name = name;
       }
-      if (avatarChanged && newAvatarUrl) {
-        updatePayload.avatarUrl = newAvatarUrl;
-      }
 
       if (Object.keys(updatePayload).length === 0) {
-        toast({ title: "No Changes to Save", description: "Could not prepare update data. Please try again.", variant: "destructive" });
+        // This case should not be hit due to the check at the start, but it's good practice.
+        toast({ title: "No Changes to Save", description: "Please make a change before saving.", variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
