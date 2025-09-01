@@ -66,7 +66,6 @@ export function ProfileClientPage() {
     try {
       const updatePayload: { name?: string; avatarUrl?: string } = {};
       
-      // 1. Handle avatar upload if a new file is present
       if (avatarFile) {
         const filePath = `public/${user.id}/${avatarFile.name}`;
         const { error: uploadError } = await supabase.storage
@@ -84,12 +83,10 @@ export function ProfileClientPage() {
         updatePayload.avatarUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
       }
       
-      // 2. Prepare name for the edge function if changed
       if (nameChanged) {
         updatePayload.name = name;
       }
 
-      // 3. Get a fresh session token RIGHT BEFORE calling the function
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
         throw new Error('Could not retrieve a valid session. Please re-login.');
@@ -97,7 +94,6 @@ export function ProfileClientPage() {
       
       console.log("[CLIENT] Preparing to call Edge Function with payload:", JSON.stringify(updatePayload, null, 2));
 
-      // 4. Invoke the edge function with the fresh token
       const { error: functionError } = await supabase.functions.invoke(
         EDGE_FUNCTION_PROFILE_UPDATE,
         {
@@ -115,13 +111,11 @@ export function ProfileClientPage() {
 
       console.log("[CLIENT] Edge Function call successful.");
 
-      // 5. Success! Show toast and reload.
       toast({
         title: "Profile Updated Successfully!",
         description: "Your changes have been saved.",
       });
 
-      // Reload the page to reflect changes everywhere.
       window.location.reload();
 
     } catch (error: any) {
@@ -192,7 +186,6 @@ export function ProfileClientPage() {
                 height={128}
                 className="object-cover bg-muted"
                 data-ai-hint="user avatar" 
-                unoptimized 
               />
               <div className="w-full max-w-xs">
                 <Label htmlFor="avatarFile">Change Avatar</Label>
