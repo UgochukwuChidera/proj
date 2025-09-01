@@ -68,7 +68,7 @@ export function ProfileClientPage() {
       
       // 1. Handle avatar upload if a new file is present
       if (avatarFile) {
-        const filePath = `${user.id}`; // CORRECTED: Removed 'public/' prefix
+        const filePath = `${user.id}/${avatarFile.name}`; // CORRECTED: Use user ID as a folder.
         const { error: uploadError } = await supabase.storage
           .from(AVATAR_STORAGE_BUCKET)
           .upload(filePath, avatarFile, { upsert: true, cacheControl: '3600' });
@@ -87,13 +87,6 @@ export function ProfileClientPage() {
       // 2. Prepare name for the edge function if changed
       if (nameChanged) {
         updatePayload.name = name;
-      }
-
-      if (Object.keys(updatePayload).length === 0) {
-        // This case should not be hit due to the check at the start, but it's good practice.
-        toast({ title: "No Changes to Save", description: "Please make a change before saving.", variant: "destructive" });
-        setIsSubmitting(false);
-        return;
       }
 
       // 3. Get a fresh session token RIGHT BEFORE calling the function
