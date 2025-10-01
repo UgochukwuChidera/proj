@@ -10,6 +10,7 @@ import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from '@/ai
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -59,7 +60,7 @@ export function ChatbotClientPage() {
     // Initial greeting from bot
     setMessages([{
       id: 'initial-greeting',
-      text: "Hello! I'm the Landmark University Resource Hub assistant. How can I help you navigate the application's features today?",
+      text: "Hello! I'm the Landmark University academic assistant. How can I help you? You can ask me about the university or to find specific academic resources.",
       sender: 'bot'
     }]);
   }, []);
@@ -70,9 +71,9 @@ export function ChatbotClientPage() {
       <Card className="w-full max-w-2xl h-[calc(100vh-10rem)] flex flex-col shadow-xl">
         <CardHeader>
           <CardTitle className="font-headline text-2xl text-primary flex items-center">
-            <Bot className="mr-2 h-7 w-7" /> Chatbot Assistant
+            <Bot className="mr-2 h-7 w-7" /> Academic Assistant
           </CardTitle>
-          <CardDescription>Ask me questions about how to use this application.</CardDescription>
+          <CardDescription>Ask me about the university or to find resources.</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden p-0">
           <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
@@ -92,14 +93,20 @@ export function ChatbotClientPage() {
                   )}
                   <div
                     className={cn(
-                      'max-w-[70%] p-3 text-sm',
+                      'max-w-[80%] p-3 text-sm prose prose-sm',
                       message.sender === 'user'
                         ? 'bg-primary text-primary-foreground rounded-l-lg rounded-br-lg'
                         : 'bg-muted text-muted-foreground rounded-r-lg rounded-bl-lg'
                     )}
                     style={{borderRadius: '0.25rem'}} // Override for boxy
                   >
-                    {message.text}
+                    <ReactMarkdown
+                      components={{
+                        p: ({node, ...props}) => <p className="my-0" {...props} />,
+                        ul: ({node, ...props}) => <ul className="my-2 pl-4" {...props} />,
+                        li: ({node, ...props}) => <li className="my-1" {...props} />,
+                      }}
+                    >{message.text}</ReactMarkdown>
                   </div>
                   {message.sender === 'user' && (
                      <Avatar className="h-8 w-8 shrink-0">
@@ -131,7 +138,7 @@ export function ChatbotClientPage() {
           >
             <Input
               type="text"
-              placeholder="Type your question..."
+              placeholder="e.g., When was LMU founded?"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
@@ -147,3 +154,4 @@ export function ChatbotClientPage() {
     </div>
   );
 }
+

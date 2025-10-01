@@ -1,0 +1,53 @@
+{
+  "universityName": "Landmark University",
+  "foundingYear": 2011,
+  "motto": "Breaking Limits",
+  "location": "Omu-Aran, Kwara State, Nigeria",
+  "contact": {
+    "generalInquiries": "info@lmu.edu.ng",
+    "admissions": "admissions@lmu.edu.ng",
+    "phone": "+234 800 000 0000"
+  },
+  "about": "Landmark University is a private university established by World Mission Agency. It is on a mission to raise a new generation of leaders and to restore the dignity of the black race. Our vision is to be a leading world-class university, by spearheading an agrarian revolution on the African continent.",
+  "colleges": [
+    {
+      "name": "College of Agricultural Sciences",
+      "departments": [
+        "Agricultural Economics and Extension",
+        "Animal Science",
+        "Crop and Soil Science"
+      ]
+    },
+    {
+      "name": "College of Business and Social Sciences",
+      "departments": [
+        "Accounting and Finance",
+        "Business Administration",
+        "Economics",
+        "Political Science and International Relations",
+        "Sociology"
+      ]
+    },
+    {
+      "name": "College of Pure and Applied Sciences",
+      "departments": [
+        "Biochemistry",
+        "Microbiology",
+        "Industrial Chemistry",
+        "Physics",
+        "Mathematics",
+        "Computer Science"
+      ]
+    },
+    {
+      "name": "College of Engineering",
+      "departments": [
+        "Agricultural and Biosystems Engineering",
+        "Civil Engineering",
+        "Electrical and Information Engineering",
+        "Mechanical Engineering",
+        "Chemical Engineering"
+      ]
+    }
+  ]
+}
