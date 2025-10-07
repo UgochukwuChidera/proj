@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { AppShell } from '@/components/layout/app-shell';
@@ -21,19 +21,23 @@ export default function ConditionalAppShell({ children }: { children: React.Reac
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const [isClient, setIsClient] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       const isPublicPath = PUBLIC_PATHS.includes(pathname) || PUBLIC_PATHS.some(p => p !== '/' && pathname.startsWith(p) && p.length > 1);
       if (!isPublicPath) {
         // Redirect to login if not authenticated and trying to access a protected path.
-        // The actual redirect is handled here, the return below will show a message.
         router.push('/login'); 
       }
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  if (isLoading) {
+  if (!isClient || isLoading) {
     return <FullScreenLoader message="Verifying access, please wait..." />;
   }
 
