@@ -5,11 +5,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { FileText, BookOpen, FlaskConical, MonitorPlay, Video, FileQuestion, Download, Trash2, Loader2, FileArchive, Image as ImageIcon, FileCode, FileSpreadsheet } from 'lucide-react';
+import { FileText, BookOpen, FlaskConical, MonitorPlay, Video, FileQuestion, Download, Trash2, Loader2, FileArchive, Image as ImageIcon, FileCode, FileSpreadsheet, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface ResourceCardProps {
   resource: Resource;
@@ -62,7 +63,9 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    e.preventDefault();
     setIsDeleting(true);
     let storageFileDeleted = false;
     let storageErrorOccurred = false;
@@ -124,7 +127,9 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    e.preventDefault();
     if (!resource.file_name || !resource.id) {
       toast({ title: 'Download Error', description: 'File details missing for download.', variant: 'destructive' });
       return;
@@ -177,72 +182,73 @@ export function ResourceCard({ resource, isAdmin, onDeleteSuccess }: ResourceCar
   };
 
   return (
-    <Card className="flex flex-col h-full shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
-      <CardHeader className="p-4">
-        <div className="flex items-center justify-center h-32 w-full bg-muted mb-3 overflow-hidden">
-          <DisplayIcon className="w-16 h-16 text-primary shrink-0" />
-        </div>
-        <CardTitle className="font-headline text-lg truncate" title={resource.name}>{resource.name}</CardTitle>
-        <CardDescription className="flex items-center text-xs text-muted-foreground">
-          <DisplayIcon className="w-4 h-4 mr-1.5 shrink-0" />
-          <span className="truncate" title={`${resource.type} - ${resource.course}`}>
-            {resource.type} - {resource.course}
-          </span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-4 pt-0 flex-grow min-h-0">
-        <p className="text-sm text-foreground/80 line-clamp-3 mb-3 h-[3.75rem] overflow-hidden" title={resource.description}>{resource.description}</p>
-        {resource.file_name && resource.id && (
-          <div className="mt-2 w-full">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleDownload}
-              disabled={isDownloading || isDeleting}
-              className="font-body text-xs w-full justify-start overflow-hidden px-2 py-1 h-auto min-h-8"
-              title={`Download ${resource.file_name} (${formatBytes(resource.file_size_bytes)})`}
-            >
-              <div className="flex items-center w-full min-w-0">
-                {isDownloading ? <Loader2 className="mr-2 h-3.5 w-3.5 shrink-0 animate-spin" /> : <Download className="mr-2 h-3.5 w-3.5 shrink-0" />}
-                <span className="truncate flex-grow min-w-0" title={resource.file_name}>{resource.file_name}</span>
-                <span className="ml-1 text-muted-foreground/70 shrink-0 text-[0.7rem] self-end whitespace-nowrap">
-                  ({formatBytes(resource.file_size_bytes)})
-                </span>
-              </div>
-            </Button>
+    <Card className="flex flex-col h-full shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden group">
+      <Link href={`/resources/${resource.id}`} className="flex flex-col flex-grow">
+        <CardHeader className="p-4">
+          <div className="flex items-center justify-center h-32 w-full bg-muted mb-3 overflow-hidden rounded-md">
+            <DisplayIcon className="w-16 h-16 text-primary shrink-0 group-hover:scale-110 transition-transform duration-300" />
           </div>
-        )}
-      </CardContent>
+          <CardTitle className="font-headline text-lg truncate group-hover:text-primary transition-colors" title={resource.name}>
+            {resource.name}
+          </CardTitle>
+          <CardDescription className="flex items-center text-xs text-muted-foreground">
+            <DisplayIcon className="w-4 h-4 mr-1.5 shrink-0" />
+            <span className="truncate" title={`${resource.type} - ${resource.course}`}>
+              {resource.type} - {resource.course}
+            </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 flex-grow min-h-0">
+          <p className="text-sm text-foreground/80 line-clamp-3 mb-3 h-[3.75rem] overflow-hidden" title={resource.description}>
+            {resource.description}
+          </p>
+        </CardContent>
+      </Link>
       <CardFooter className="p-4 pt-2 flex flex-wrap gap-2 items-center justify-between text-xs border-t mt-auto">
         <div className="flex gap-1.5 items-center overflow-hidden min-w-0 flex-grow">
             <Badge variant="secondary" className="font-normal shrink-0">{resource.year}</Badge>
         </div>
-        {isAdmin && (
-           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="font-body text-xs h-7 px-2 py-1 shrink-0" disabled={isDeleting || isDownloading}>
-                {isDeleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the resource
-                  &quot;{resource.name}&quot; and its associated file (if any) from storage.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={cn(buttonVariants({variant: "destructive"}))}>
-                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Yes, delete it
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+        <div className="flex items-center gap-2">
+            {resource.file_name && resource.id && (
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleDownload}
+                    disabled={isDownloading || isDeleting}
+                    className="font-body text-xs h-7 px-2 py-1 shrink-0"
+                    title={`Download ${resource.file_name} (${formatBytes(resource.file_size_bytes)})`}
+                >
+                    {isDownloading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}
+                    Download
+                </Button>
+            )}
+            {isAdmin && (
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="font-body text-xs h-7 px-2 py-1 shrink-0" disabled={isDeleting || isDownloading} onClick={(e) => {e.stopPropagation(); e.preventDefault();}}>
+                    {isDeleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
+                    Delete
+                </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent onClick={(e) => {e.stopPropagation(); e.preventDefault();}}>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the resource
+                    &quot;{resource.name}&quot; and its associated file (if any) from storage.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={cn(buttonVariants({variant: "destructive"}))}>
+                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Yes, delete it
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            )}
+        </div>
       </CardFooter>
     </Card>
   );
