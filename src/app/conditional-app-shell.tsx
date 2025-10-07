@@ -28,14 +28,14 @@ export default function ConditionalAppShell({ children }: { children: React.Reac
   }, []);
 
   React.useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isClient && !isLoading && !isAuthenticated) {
       const isPublicPath = PUBLIC_PATHS.includes(pathname) || PUBLIC_PATHS.some(p => p !== '/' && pathname.startsWith(p) && p.length > 1);
       if (!isPublicPath) {
         // Redirect to login if not authenticated and trying to access a protected path.
         router.push('/login'); 
       }
     }
-  }, [isLoading, isAuthenticated, pathname, router]);
+  }, [isClient, isLoading, isAuthenticated, pathname, router]);
 
   if (!isClient || isLoading) {
     return <FullScreenLoader message="Verifying access, please wait..." />;
